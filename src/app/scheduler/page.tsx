@@ -1,13 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon, PlusCircle, Trash2 } from "lucide-react"
+import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp } from "firebase/firestore";
 
 import { billSchema, type Bill } from "@/lib/schemas"
 import { cn } from "@/lib/utils"
+import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -23,15 +25,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton";
 
-const initialBills: Bill[] = [
-  { name: "Netflix Subscription", amount: 15.49, dueDate: new Date("2024-07-25") },
-  { name: "Electricity Bill", amount: 75.20, dueDate: new Date("2024-07-28") },
-  { name: "Internet Service", amount: 60.00, dueDate: new Date("2024-08-01") },
-];
+interface BillWithId extends Bill {
+    id: string;
+}
 
 export default function SchedulerPage() {
-  const [bills, setBills] = useState<Bill[]>(initialBills);
+  const [bills, setBills] = useState<BillWithId[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   const form = useForm<Bill>({
@@ -43,23 +45,77 @@ export default function SchedulerPage() {
     },
   });
 
-  function onSubmit(data: Bill) {
-    setBills(prev => [...prev, data].sort((a,b) => a.dueDate.getTime() - b.dueDate.getTime()));
-    toast({
-      title: "Bill Scheduled",
-      description: `${data.name} for $${data.amount} has been added.`,
-    });
-    form.reset();
+  useEffect(() => {
+    const fetchBills = async () => {
+        try {
+            const q = query(collection(db, "bills"), orderBy("dueDate", "asc"));
+            const querySnapshot = await getDocs(q);
+            const billsData = querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    dueDate: (data.dueDate as Timestamp).toDate(),
+                } as BillWithId;
+            });
+            setBills(billsData);
+        } catch (error) {
+            console.error("Error fetching bills: ", error);
+            toast({
+                title: "Error",
+                description: "Could not fetch bills.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    fetchBills();
+  }, [toast]);
+
+  async function onSubmit(data: Bill) {
+     try {
+        const docRef = await addDoc(collection(db, "bills"), {
+            ...data,
+            dueDate: Timestamp.fromDate(data.dueDate),
+        });
+        setBills(prev => [...prev, { ...data, id: docRef.id }].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()));
+        toast({
+            title: "Bill Scheduled",
+            description: `${data.name} for $${data.amount} has been added.`,
+        });
+        form.reset();
+    } catch (error) {
+        console.error("Error adding bill: ", error);
+        toast({
+            title: "Error",
+            description: "Could not schedule bill.",
+            variant: "destructive",
+        });
+    }
   }
   
-  function removeBill(index: number) {
-    const billToRemove = bills[index];
-    setBills(prev => prev.filter((_, i) => i !== index));
-    toast({
-        title: "Bill Removed",
-        description: `${billToRemove.name} has been removed from the schedule.`,
-        variant: "destructive"
-    });
+  async function removeBill(id: string) {
+    const billToRemove = bills.find(b => b.id === id);
+    if (!billToRemove) return;
+
+    try {
+        await deleteDoc(doc(db, "bills", id));
+        setBills(prev => prev.filter((bill) => bill.id !== id));
+        toast({
+            title: "Bill Removed",
+            description: `${billToRemove.name} has been removed from the schedule.`,
+            variant: "destructive"
+        });
+    } catch (error) {
+        console.error("Error removing bill: ", error);
+        toast({
+            title: "Error",
+            description: "Could not remove bill.",
+            variant: "destructive",
+        });
+    }
   }
 
   return (
@@ -165,18 +221,29 @@ export default function SchedulerPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {bills.map((bill, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">{bill.name}</TableCell>
-                    <TableCell>{format(bill.dueDate, "PPP")}</TableCell>
-                    <TableCell className="text-right">${bill.amount.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">
-                       <Button variant="ghost" size="icon" onClick={() => removeBill(index)}>
+                {loading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-5 w-16" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  bills.map((bill) => (
+                    <TableRow key={bill.id}>
+                      <TableCell className="font-medium">{bill.name}</TableCell>
+                      <TableCell>{format(bill.dueDate, "PPP")}</TableCell>
+                      <TableCell className="text-right">${bill.amount.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                       <Button variant="ghost" size="icon" onClick={() => removeBill(bill.id)}>
                          <Trash2 className="h-4 w-4 text-destructive" />
                        </Button>
                     </TableCell>
-                  </TableRow>
-                ))}
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>

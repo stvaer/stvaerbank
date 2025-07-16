@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp } from "lucide-react";
+import { collection, addDoc, getDocs, Timestamp, query, orderBy } from "firebase/firestore";
 
 import { transactionSchema, type Transaction } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
+import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,16 +34,11 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-
-const initialTransactions: Transaction[] = [
-    { description: "Paycheck", amount: 3000, type: "income", category: "Salary", date: new Date("2024-07-01")},
-    { description: "Groceries", amount: 150.75, type: "expense", category: "Food", date: new Date("2024-07-03")},
-    { description: "Gas", amount: 45.50, type: "expense", category: "Transport", date: new Date("2024-07-05")},
-    { description: "Freelance Work", amount: 500, type: "income", category: "Side Hustle", date: new Date("2024-07-06")},
-]
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   const form = useForm<Transaction>({
@@ -53,14 +50,59 @@ export default function TransactionsPage() {
       date: new Date(),
     },
   });
+  
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const q = query(collection(db, "transactions"), orderBy("date", "desc"));
+        const querySnapshot = await getDocs(q);
+        const transactionsData = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            ...data,
+            date: (data.date as Timestamp).toDate(),
+          } as Transaction;
+        });
+        setTransactions(transactionsData);
+      } catch (error) {
+        console.error("Error fetching transactions: ", error);
+        toast({
+          title: "Error",
+          description: "Could not fetch transactions.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  function onSubmit(data: Transaction) {
-    setTransactions(prev => [data, ...prev].sort((a,b) => b.date.getTime() - a.date.getTime()));
-    toast({
-      title: "Transaction Added",
-      description: `${data.description} for $${data.amount} has been recorded.`,
-    });
-    form.reset();
+    fetchTransactions();
+  }, [toast]);
+
+
+  async function onSubmit(data: Transaction) {
+    try {
+      await addDoc(collection(db, "transactions"), {
+        ...data,
+        date: Timestamp.fromDate(data.date),
+      });
+      
+      const newTransactions = [data, ...transactions].sort((a,b) => b.date.getTime() - a.date.getTime());
+      setTransactions(newTransactions);
+
+      toast({
+        title: "Transaction Added",
+        description: `${data.description} for $${data.amount} has been recorded.`,
+      });
+      form.reset();
+    } catch (error) {
+      console.error("Error adding transaction: ", error);
+       toast({
+        title: "Error",
+        description: "Could not add transaction.",
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -217,23 +259,35 @@ export default function TransactionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map((tx, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">{tx.description}</TableCell>
-                    <TableCell>
-                      {tx.type === 'income' ? (
-                        <span className="flex items-center text-primary"><ArrowUp className="mr-1 h-4 w-4" /> Income</span>
-                      ) : (
-                        <span className="flex items-center text-destructive"><ArrowDown className="mr-1 h-4 w-4" /> Expense</span>
-                      )}
-                    </TableCell>
-                    <TableCell><Badge variant="outline">{tx.category}</Badge></TableCell>
-                    <TableCell>{format(tx.date, "PPP")}</TableCell>
-                    <TableCell className={`text-right font-mono ${tx.type === 'income' ? 'text-primary' : ''}`}>
-                      {tx.type === 'income' ? '+' : '-'}${tx.amount.toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-5 w-16" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  transactions.map((tx, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{tx.description}</TableCell>
+                      <TableCell>
+                        {tx.type === 'income' ? (
+                          <span className="flex items-center text-primary"><ArrowUp className="mr-1 h-4 w-4" /> Income</span>
+                        ) : (
+                          <span className="flex items-center text-destructive"><ArrowDown className="mr-1 h-4 w-4" /> Expense</span>
+                        )}
+                      </TableCell>
+                      <TableCell><Badge variant="outline">{tx.category}</Badge></TableCell>
+                      <TableCell>{format(tx.date, "PPP")}</TableCell>
+                      <TableCell className={`text-right font-mono ${tx.type === 'income' ? 'text-primary' : ''}`}>
+                        {tx.type === 'income' ? '+' : '-'}${tx.amount.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
