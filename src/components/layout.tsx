@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { AreaChart, ArrowRightLeft, CalendarClock, LayoutDashboard } from "lucide-react";
-import { getAuth, onAuthStateChanged, User } from "firebase/auth";
+import { usePathname, useRouter } from "next/navigation";
+import { AreaChart, ArrowRightLeft, CalendarClock, LayoutDashboard, LogOut } from "lucide-react";
+import { getAuth, onAuthStateChanged, User, signOut } from "firebase/auth";
 import { app } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 
@@ -23,7 +23,6 @@ import { Logo } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "./ui/separator";
-import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -37,9 +36,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pageTitle = navItems.find(item => pathname.startsWith(item.href))?.label || "Dashboard";
   const [user, setUser] = useState<User | null>(null);
+  const auth = getAuth(app);
 
   useEffect(() => {
-    const auth = getAuth(app);
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
@@ -49,7 +48,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, [auth, router]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      router.push("/login");
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -79,6 +87,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarContent>
         <SidebarFooter>
            <Separator className="my-2" />
+            <Button variant="ghost" className="justify-start gap-2" onClick={handleSignOut}>
+              <LogOut className="size-5" />
+              <span>Cerrar Sesión</span>
+            </Button>
            <div className="flex items-center gap-3 p-2">
              <Avatar>
                <AvatarImage data-ai-hint="person abstract" src="https://placehold.co/40x40.png" alt="@user" />
@@ -97,8 +109,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
              <SidebarTrigger className="md:hidden" />
              <h2 className="text-lg font-semibold font-headline">{pageTitle}</h2>
           </div>
-          <Button variant="outline" className="border-primary text-primary hover:bg-primary/10 hover:text-primary">
-            Nueva Transacción
+          <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary/10 hover:text-primary">
+            <Link href="/transactions">Nueva Transacción</Link>
           </Button>
         </header>
         <main className="flex-1 p-4 sm:p-6 bg-background/95">
