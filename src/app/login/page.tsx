@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { app } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
-import { LoginLogo } from "@/components/login/logo-button";
 import { Input } from "@/components/ui/input";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -131,7 +131,7 @@ export default function LoginPage() {
         className="svg-container cursor-pointer transition-transform duration-500 hover:scale-110 hover:drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"
         onClick={openModal}
       >
-        <LoginLogo />
+        <Image src="/STVbankhome.svg" alt="STVAERBank Logo" width={120} height={162} className="text-white fill-current"/>
       </div>
 
       {isModalOpen && (
@@ -154,7 +154,7 @@ export default function LoginPage() {
                  />
               </div>
 
-              <div className="mb-6 flex w-full justify-between">
+              <div className="mb-6 flex w-full justify-between gap-2">
                 {pin.map((digit, index) => (
                   <input
                     key={index}
