@@ -60,6 +60,13 @@ export default function TransactionsPage() {
       date: new Date(),
       hasAdvance: false,
       advanceAmount: 0,
+      loanDetails: {
+        loanId: '',
+        totalAmount: 0,
+        installments: 0,
+        frequency: 'monthly',
+        startDate: new Date(),
+      }
     },
   });
 
@@ -342,21 +349,49 @@ export default function TransactionsPage() {
                         control={form.control}
                         name="loanDetails.installments"
                         render={({ field }) => (
-                          <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
                         )}
                       />
                       <FormField
                         control={form.control}
                         name="loanDetails.frequency"
                         render={({ field }) => (
-                          <FormItem><FormLabel>Frecuencia de Pago</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar frecuencia" /></SelectTrigger></FormControl><SelectContent><SelectItem value="monthly">Mensual</SelectItem><SelectItem value="bi-weekly">Quincenal</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                          <FormItem>
+                            <FormLabel>Frecuencia de Pago</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger><SelectValue placeholder="Seleccionar frecuencia" /></SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="monthly">Mensual</SelectItem>
+                                <SelectItem value="bi-weekly">Quincenal</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
                         )}
                       />
                        <FormField
                           control={form.control}
                           name="loanDetails.startDate"
                           render={({ field }) => (
-                            <FormItem className="flex flex-col"><FormLabel>Fecha de Inicio de Pago</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal",!field.value && "text-muted-foreground")}><>{field.value ? format(field.value, "PPP") : <span>Elige una fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
+                            <FormItem className="flex flex-col">
+                              <FormLabel>Fecha de Inicio de Pago</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button variant={"outline"} className={cn("pl-3 text-left font-normal",!field.value && "text-muted-foreground")}>
+                                      {field.value ? format(field.value, "PPP") : <span>Elige una fecha</span>}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                            </FormItem>
                           )}
                         />
                     </div>
@@ -450,7 +485,7 @@ export default function TransactionsPage() {
                         </TableCell>
                         <TableCell><Badge variant="outline">{tx.category}</Badge></TableCell>
                         <TableCell>{format(tx.date, "PPP")}</TableCell>
-                        <TableCell className={`text-right font-mono`}>
+                        <TableCell className={'text-right font-mono'}>
                           {tx.hasAdvance && tx.advanceAmount ? (
                              <div className="flex flex-col items-end">
                                 <span className="text-xs text-muted-foreground line-through">${tx.amount.toFixed(2)}</span>
@@ -476,3 +511,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
