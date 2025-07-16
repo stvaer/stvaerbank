@@ -154,7 +154,7 @@ export default function LoginPage() {
                  />
               </div>
 
-              <div className="mb-6 flex justify-center space-x-2">
+              <div className="mb-6 flex w-full justify-between">
                 {pin.map((digit, index) => (
                   <input
                     key={index}
