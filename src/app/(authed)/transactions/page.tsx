@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
+import { format, addMonths, addDays } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp } from "lucide-react";
-import { collection, addDoc, getDocs, Timestamp, query, orderBy, where } from "firebase/firestore";
+import { collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
-import { transactionSchema, type Transaction } from "@/lib/schemas";
+import { transactionSchema, type Transaction, loanSchema, type LoanDetails } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { db, app } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
+type FormValues = Transaction & {
+  loanDetails?: LoanDetails;
+}
+
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +50,7 @@ export default function TransactionsPage() {
   const auth = getAuth(app);
   const user = auth.currentUser;
 
-  const form = useForm<Transaction>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       description: "",
@@ -62,7 +66,7 @@ export default function TransactionsPage() {
   const watchedHasAdvance = form.watch("hasAdvance");
 
   useEffect(() => {
-    if (watchedCategory === 'Salario') {
+    if (watchedCategory === 'Salario' || watchedCategory === 'Préstamo') {
       form.setValue('type', 'income');
     }
   }, [watchedCategory, form.setValue]);
@@ -104,7 +108,7 @@ export default function TransactionsPage() {
   }, [toast, user]);
 
 
-  async function onSubmit(data: Transaction) {
+  async function onSubmit(data: FormValues) {
     if (!user) {
       toast({
         title: "Error",
@@ -115,22 +119,47 @@ export default function TransactionsPage() {
     }
     
     const transactionData: any = {
-      ...data,
+      description: data.description,
+      amount: data.amount,
+      type: data.type,
+      category: data.category,
       userId: user.uid,
       date: Timestamp.fromDate(data.date),
     };
 
-    if (data.category !== 'Salario' || !data.hasAdvance) {
-      delete transactionData.hasAdvance;
-      delete transactionData.advanceAmount;
-    } else if (data.category === 'Salario' && !data.hasAdvance) {
-        delete transactionData.advanceAmount;
+    if (data.category === 'Salario' && data.hasAdvance) {
+      transactionData.hasAdvance = data.hasAdvance;
+      transactionData.advanceAmount = data.advanceAmount;
     }
-
 
     try {
       await addDoc(collection(db, "transactions"), transactionData);
       
+      if (data.category === 'Préstamo' && data.loanDetails) {
+        const { loanId, totalAmount, installments, frequency, startDate } = data.loanDetails;
+        const installmentAmount = totalAmount / installments;
+        const batch = writeBatch(db);
+
+        for (let i = 0; i < installments; i++) {
+          let dueDate: Date;
+          if (frequency === 'monthly') {
+            dueDate = addMonths(startDate, i);
+          } else { // bi-weekly
+            dueDate = addDays(startDate, (i + 1) * 15);
+          }
+
+          const billData = {
+            name: `Cuota ${i + 1}/${installments} - Préstamo ${loanId}`,
+            amount: installmentAmount,
+            dueDate: Timestamp.fromDate(dueDate),
+            userId: user.uid,
+          };
+          const billRef = doc(collection(db, "bills"));
+          batch.set(billRef, billData);
+        }
+        await batch.commit();
+      }
+
       const newTransaction = { ...data, date: data.date };
       const newTransactions = [newTransaction, ...transactions].sort((a,b) => b.date.getTime() - a.date.getTime());
       setTransactions(newTransactions as Transaction[]);
@@ -198,7 +227,7 @@ export default function TransactionsPage() {
                           onValueChange={field.onChange}
                           value={field.value}
                           className="flex space-x-4"
-                          disabled={watchedCategory === 'Salario'}
+                          disabled={watchedCategory === 'Salario' || watchedCategory === 'Préstamo'}
                         >
                           <FormItem className="flex items-center space-x-2 space-y-0">
                             <FormControl>
@@ -236,6 +265,7 @@ export default function TransactionsPage() {
                           <SelectItem value="Housing">Vivienda</SelectItem>
                           <SelectItem value="Entertainment">Entretenimiento</SelectItem>
                           <SelectItem value="Salario">Salario</SelectItem>
+                          <SelectItem value="Préstamo">Préstamo</SelectItem>
                           <SelectItem value="Side Hustle">Extra</SelectItem>
                           <SelectItem value="Other">Otro</SelectItem>
                         </SelectContent>
@@ -285,12 +315,60 @@ export default function TransactionsPage() {
                   </>
                 )}
 
+                {watchedCategory === 'Préstamo' && (
+                  <Card className="p-4 bg-muted/30">
+                    <CardTitle className="text-lg mb-4">Detalles del Préstamo</CardTitle>
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="loanDetails.loanId"
+                        render={({ field }) => (
+                          <FormItem><FormLabel>ID del Préstamo</FormLabel><FormControl><Input placeholder="ej. PREST-001" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}
+                      />
+                       <FormField
+                          control={form.control}
+                          name="loanDetails.totalAmount"
+                          render={({ field }) => (
+                            <FormItem><FormLabel>Monto Total del Préstamo</FormLabel><FormControl><Input type="number" placeholder="5000.00" {...field} onChange={(e) => {
+                                const value = parseFloat(e.target.value) || 0;
+                                field.onChange(value);
+                                form.setValue('amount', value);
+                            }} /></FormControl><FormMessage /></FormItem>
+                          )}
+                        />
+                      <FormField
+                        control={form.control}
+                        name="loanDetails.installments"
+                        render={({ field }) => (
+                          <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="loanDetails.frequency"
+                        render={({ field }) => (
+                          <FormItem><FormLabel>Frecuencia de Pago</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar frecuencia" /></SelectTrigger></FormControl><SelectContent><SelectItem value="monthly">Mensual</SelectItem><SelectItem value="bi-weekly">Quincenal</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                        )}
+                      />
+                       <FormField
+                          control={form.control}
+                          name="loanDetails.startDate"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col"><FormLabel>Fecha de Inicio de Pago</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal",!field.value && "text-muted-foreground")}><>{field.value ? format(field.value, "PPP") : <span>Elige una fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
+                          )}
+                        />
+                    </div>
+                  </Card>
+                )}
+
+
                 <FormField
                   control={form.control}
                   name="date"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Fecha</FormLabel>
+                      <FormLabel>Fecha de Transacción</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
