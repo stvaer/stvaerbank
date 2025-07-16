@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -5,10 +6,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, addDays } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp } from "lucide-react";
-import { collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch } from "firebase/firestore";
+import { collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
-import { transactionSchema, type Transaction, loanSchema, type LoanDetails } from "@/lib/schemas";
+import { transactionSchema, type Transaction, type LoanDetails } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { db, app } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,7 @@ export default function TransactionsPage() {
     if (watchedCategory === 'Salario' || watchedCategory === 'Préstamo') {
       form.setValue('type', 'income');
     }
-  }, [watchedCategory, form.setValue]);
+  }, [watchedCategory, form]);
   
   useEffect(() => {
     const fetchTransactions = async () => {
