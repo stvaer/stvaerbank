@@ -36,6 +36,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -51,8 +53,19 @@ export default function TransactionsPage() {
       amount: 0,
       type: "expense",
       date: new Date(),
+      hasAdvance: false,
+      advanceAmount: 0,
     },
   });
+
+  const watchedCategory = form.watch("category");
+  const watchedHasAdvance = form.watch("hasAdvance");
+
+  useEffect(() => {
+    if (watchedCategory === 'Salario') {
+      form.setValue('type', 'income');
+    }
+  }, [watchedCategory, form]);
   
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -100,12 +113,20 @@ export default function TransactionsPage() {
       });
       return;
     }
+    
+    const transactionData: any = {
+      ...data,
+      userId: user.uid,
+      date: Timestamp.fromDate(data.date),
+    };
+
+    if (data.category !== 'Salario' || !data.hasAdvance) {
+      delete transactionData.hasAdvance;
+      delete transactionData.advanceAmount;
+    }
+
     try {
-      await addDoc(collection(db, "transactions"), {
-        ...data,
-        userId: user.uid,
-        date: Timestamp.fromDate(data.date),
-      });
+      await addDoc(collection(db, "transactions"), transactionData);
       
       const newTransactions = [data, ...transactions].sort((a,b) => b.date.getTime() - a.date.getTime());
       setTransactions(newTransactions);
@@ -173,6 +194,7 @@ export default function TransactionsPage() {
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                           className="flex space-x-4"
+                          disabled={watchedCategory === 'Salario'}
                         >
                           <FormItem className="flex items-center space-x-2 space-y-0">
                             <FormControl>
@@ -218,6 +240,44 @@ export default function TransactionsPage() {
                     </FormItem>
                   )}
                 />
+                
+                {watchedCategory === 'Salario' && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="hasAdvance"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                          <div className="space-y-0.5">
+                            <FormLabel>¿Adelanto de Salario?</FormLabel>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    {watchedHasAdvance && (
+                       <FormField
+                         control={form.control}
+                         name="advanceAmount"
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Monto del Adelanto</FormLabel>
+                             <FormControl>
+                               <Input type="number" placeholder="0.00" {...field} />
+                             </FormControl>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
+                    )}
+                  </>
+                )}
+
                 <FormField
                   control={form.control}
                   name="date"
@@ -290,23 +350,37 @@ export default function TransactionsPage() {
                     </TableRow>
                   ))
                 ) : (
-                  transactions.map((tx, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{tx.description}</TableCell>
-                      <TableCell>
-                        {tx.type === 'income' ? (
-                          <span className="flex items-center text-primary"><ArrowUp className="mr-1 h-4 w-4" /> Ingreso</span>
-                        ) : (
-                          <span className="flex items-center text-destructive"><ArrowDown className="mr-1 h-4 w-4" /> Gasto</span>
-                        )}
-                      </TableCell>
-                      <TableCell><Badge variant="outline">{tx.category}</Badge></TableCell>
-                      <TableCell>{format(tx.date, "PPP")}</TableCell>
-                      <TableCell className={`text-right font-mono ${tx.type === 'income' ? 'text-primary' : ''}`}>
-                        {tx.type === 'income' ? '+' : '-'}${tx.amount.toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  transactions.map((tx, index) => {
+                    const finalAmount = tx.hasAdvance && tx.advanceAmount ? tx.amount - tx.advanceAmount : tx.amount;
+                    return (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{tx.description}</TableCell>
+                        <TableCell>
+                          {tx.type === 'income' ? (
+                            <span className="flex items-center text-primary"><ArrowUp className="mr-1 h-4 w-4" /> Ingreso</span>
+                          ) : (
+                            <span className="flex items-center text-destructive"><ArrowDown className="mr-1 h-4 w-4" /> Gasto</span>
+                          )}
+                        </TableCell>
+                        <TableCell><Badge variant="outline">{tx.category}</Badge></TableCell>
+                        <TableCell>{format(tx.date, "PPP")}</TableCell>
+                        <TableCell className={`text-right font-mono`}>
+                          {tx.hasAdvance && tx.advanceAmount ? (
+                             <div className="flex flex-col items-end">
+                                <span className="text-xs text-muted-foreground line-through">${tx.amount.toFixed(2)}</span>
+                                <span className={tx.type === 'income' ? 'text-primary' : ''}>
+                                  {tx.type === 'income' ? '+' : '-'}${finalAmount.toFixed(2)}
+                                </span>
+                             </div>
+                          ) : (
+                            <span className={tx.type === 'income' ? 'text-primary' : ''}>
+                              {tx.type === 'income' ? '+' : '-'}${tx.amount.toFixed(2)}
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>

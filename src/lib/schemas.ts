@@ -7,6 +7,24 @@ export const transactionSchema = z.object({
   category: z.string({ required_error: "Por favor, selecciona una categoría." }),
   date: z.date({ required_error: "Se requiere una fecha." }),
   userId: z.string().optional(), // Added for security rules
+  hasAdvance: z.boolean().optional(),
+  advanceAmount: z.coerce.number().optional(),
+}).refine(data => {
+    if (data.hasAdvance) {
+        return data.advanceAmount !== undefined && data.advanceAmount > 0;
+    }
+    return true;
+}, {
+    message: "El monto del adelanto es requerido.",
+    path: ["advanceAmount"],
+}).refine(data => {
+    if (data.hasAdvance && data.advanceAmount) {
+        return data.advanceAmount < data.amount;
+    }
+    return true;
+}, {
+    message: "El adelanto no puede ser mayor al monto total.",
+    path: ["advanceAmount"],
 });
 
 export type Transaction = z.infer<typeof transactionSchema>;
