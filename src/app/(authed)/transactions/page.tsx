@@ -5,11 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp } from "lucide-react";
-import { collection, addDoc, getDocs, Timestamp, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, getDocs, Timestamp, query, orderBy, where } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 import { transactionSchema, type Transaction } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
-import { db } from "@/lib/firebase";
+import { db, app } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +41,8 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const auth = getAuth(app);
+  const user = auth.currentUser;
 
   const form = useForm<Transaction>({
     resolver: zodResolver(transactionSchema),
@@ -53,8 +56,16 @@ export default function TransactionsPage() {
   
   useEffect(() => {
     const fetchTransactions = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
       try {
-        const q = query(collection(db, "transactions"), orderBy("date", "desc"));
+        const q = query(
+          collection(db, "transactions"), 
+          where("userId", "==", user.uid),
+          orderBy("date", "desc")
+        );
         const querySnapshot = await getDocs(q);
         const transactionsData = querySnapshot.docs.map(doc => {
           const data = doc.data();
@@ -77,13 +88,22 @@ export default function TransactionsPage() {
     };
 
     fetchTransactions();
-  }, [toast]);
+  }, [toast, user]);
 
 
   async function onSubmit(data: Transaction) {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "Debes iniciar sesión para añadir una transacción.",
+        variant: "destructive",
+      });
+      return;
+    }
     try {
       await addDoc(collection(db, "transactions"), {
         ...data,
+        userId: user.uid,
         date: Timestamp.fromDate(data.date),
       });
       

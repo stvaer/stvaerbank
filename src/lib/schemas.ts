@@ -6,6 +6,7 @@ export const transactionSchema = z.object({
   type: z.enum(["income", "expense"], { required_error: "Debes seleccionar un tipo de transacción." }),
   category: z.string({ required_error: "Por favor, selecciona una categoría." }),
   date: z.date({ required_error: "Se requiere una fecha." }),
+  userId: z.string().optional(), // Added for security rules
 });
 
 export type Transaction = z.infer<typeof transactionSchema>;
@@ -15,6 +16,7 @@ export const billSchema = z.object({
   name: z.string().min(2, { message: "Se requiere el nombre de la factura." }),
   amount: z.coerce.number().positive({ message: "El monto debe ser positivo." }),
   dueDate: z.date({ required_error: "Se requiere una fecha de vencimiento." }),
+  userId: z.string().optional(), // Added for security rules
 });
 
 export type Bill = z.infer<typeof billSchema>;

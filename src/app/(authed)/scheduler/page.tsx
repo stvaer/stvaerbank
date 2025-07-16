@@ -5,11 +5,12 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon, PlusCircle, Trash2 } from "lucide-react"
-import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp, where } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 import { billSchema, type Bill } from "@/lib/schemas"
 import { cn } from "@/lib/utils"
-import { db } from "@/lib/firebase";
+import { db, app } from "@/lib/firebase";
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -35,6 +36,8 @@ export default function SchedulerPage() {
   const [bills, setBills] = useState<BillWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const auth = getAuth(app);
+  const user = auth.currentUser;
 
   const form = useForm<Bill>({
     resolver: zodResolver(billSchema),
@@ -47,8 +50,16 @@ export default function SchedulerPage() {
 
   useEffect(() => {
     const fetchBills = async () => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
         try {
-            const q = query(collection(db, "bills"), orderBy("dueDate", "asc"));
+            const q = query(
+                collection(db, "bills"), 
+                where("userId", "==", user.uid),
+                orderBy("dueDate", "asc")
+            );
             const querySnapshot = await getDocs(q);
             const billsData = querySnapshot.docs.map(doc => {
                 const data = doc.data();
@@ -72,15 +83,25 @@ export default function SchedulerPage() {
     };
 
     fetchBills();
-  }, [toast]);
+  }, [toast, user]);
 
   async function onSubmit(data: Bill) {
-     try {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "Debes iniciar sesión para añadir una factura.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
         const docRef = await addDoc(collection(db, "bills"), {
             ...data,
+            userId: user.uid,
             dueDate: Timestamp.fromDate(data.dueDate),
         });
-        setBills(prev => [...prev, { ...data, id: docRef.id }].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()));
+        const newBill: BillWithId = { ...data, id: docRef.id };
+        setBills(prev => [...prev, newBill].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()));
         toast({
             title: "Factura Programada",
             description: `${data.name} por $${data.amount} ha sido añadida.`,

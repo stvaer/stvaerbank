@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
-import { collection, getDocs, Timestamp, query } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { collection, getDocs, Timestamp, query, where } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { db, app } from "@/lib/firebase";
 import { Transaction } from "@/lib/schemas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { subMonths, format, startOfMonth, endOfMonth } from 'date-fns';
@@ -22,11 +23,18 @@ export default function DashboardPage() {
   const [balances, setBalances] = useState<Array<{ name: string; value: number; icon: React.ElementType; color: string }>>([]);
   const [chartData, setChartData] = useState<Array<{ month: string; balance: number }>>([]);
   const [loading, setLoading] = useState(true);
+  const auth = getAuth(app);
+  const user = auth.currentUser;
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
       try {
-        const querySnapshot = await getDocs(collection(db, "transactions"));
+        const q = query(collection(db, "transactions"), where("userId", "==", user.uid));
+        const querySnapshot = await getDocs(q);
         const transactionsData = querySnapshot.docs.map(doc => {
           const data = doc.data();
           return {
@@ -82,7 +90,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, []);
+  }, [user]);
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
