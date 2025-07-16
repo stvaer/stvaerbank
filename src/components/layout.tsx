@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { AreaChart, ArrowRightLeft, CalendarClock, LayoutDashboard, LogOut } from "lucide-react";
 import { getAuth, onAuthStateChanged, User, signOut } from "firebase/auth";
@@ -19,7 +20,6 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Logo } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "./ui/separator";
@@ -64,7 +64,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar>
         <SidebarHeader>
           <Link href="/dashboard" className="flex items-center gap-2">
-            <Logo className="size-8 text-primary" />
+            <Image src="/stvisotip.svg" alt="STVAERBank Isotype" width={32} height={32} />
             <span className="text-xl font-semibold font-headline">STVAERBank</span>
           </Link>
         </SidebarHeader>
