@@ -62,7 +62,7 @@ export default function LoginPage() {
     }
     
     if (newPin.every(p => p !== '')) {
-        handleLogin();
+        handleLogin(newPin.join(""));
     }
   };
 
@@ -76,7 +76,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleLogin = async () => {
+  const handleLogin = async (currentPin?: string) => {
     setError(false);
     setErrorMessage("");
 
@@ -85,8 +85,8 @@ export default function LoginPage() {
       setErrorMessage("Por favor, introduce tu correo.");
       return;
     }
-
-    const password = pin.join("");
+    
+    const password = currentPin || pin.join("");
     if (password.length < 6) {
       setError(true);
       setErrorMessage("El PIN debe tener 6 dígitos.");
@@ -184,7 +184,7 @@ export default function LoginPage() {
                   CANCELAR
                 </button>
                 <button
-                  onClick={handleLogin}
+                  onClick={() => handleLogin()}
                   className="terminal-button w-1/2 py-3 text-sm"
                 >
                   INICIAR
