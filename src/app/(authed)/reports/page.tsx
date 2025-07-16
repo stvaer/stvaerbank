@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import {
   ChartContainer,
@@ -10,15 +11,13 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts"
 import { ArrowUpRight, ArrowDownLeft, Milestone } from "lucide-react"
 import { Button } from "@/components/ui/button"
-
-const chartData = [
-  { month: "Ene", income: 4000, expenses: 2400 },
-  { month: "Feb", income: 3000, expenses: 1398 },
-  { month: "Mar", income: 5000, expenses: 9800 },
-  { month: "Abr", income: 2780, expenses: 3908 },
-  { month: "May", income: 1890, expenses: 4800 },
-  { month: "Jun", income: 2390, expenses: 3800 },
-]
+import { collection, query, where, getDocs, Timestamp } from "firebase/firestore"
+import { getAuth } from "firebase/auth"
+import { db, app } from "@/lib/firebase"
+import { Transaction } from "@/lib/schemas"
+import { subMonths, startOfMonth, endOfMonth, format } from 'date-fns'
+import { es } from 'date-fns/locale'
+import { Skeleton } from "@/components/ui/skeleton"
 
 const chartConfig: ChartConfig = {
   income: {
@@ -31,13 +30,90 @@ const chartConfig: ChartConfig = {
   },
 }
 
-const summaryData = {
-  totalIncome: 20060,
-  totalExpenses: 26106,
-  netFlow: -6046,
+interface MonthlyData {
+  month: string;
+  income: number;
+  expenses: number;
 }
 
 export default function ReportsPage() {
+  const [loading, setLoading] = useState(true);
+  const [chartData, setChartData] = useState<MonthlyData[]>([]);
+  const [summaryData, setSummaryData] = useState({
+    totalIncome: 0,
+    totalExpenses: 0,
+    netFlow: 0,
+  });
+
+  const auth = getAuth(app);
+  const user = auth.currentUser;
+
+  useEffect(() => {
+    const fetchReportData = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const sixMonthsAgo = subMonths(new Date(), 6);
+        const q = query(
+          collection(db, "transactions"),
+          where("userId", "==", user.uid),
+          where("date", ">=", Timestamp.fromDate(sixMonthsAgo))
+        );
+        const querySnapshot = await getDocs(q);
+        const transactions = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return { ...data, date: (data.date as Timestamp).toDate() } as Transaction;
+        });
+
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        const monthlyDataMap: { [key: string]: { income: number, expenses: number } } = {};
+
+        for (let i = 5; i >= 0; i--) {
+          const date = subMonths(new Date(), i);
+          const monthKey = format(date, 'yyyy-MM');
+          const monthName = format(date, 'MMM', { locale: es });
+          monthlyDataMap[monthKey] = { income: 0, expenses: 0 };
+        }
+        
+        transactions.forEach(t => {
+          const monthKey = format(t.date, 'yyyy-MM');
+          if (monthlyDataMap[monthKey]) {
+            if (t.type === 'income') {
+              monthlyDataMap[monthKey].income += t.amount;
+              totalIncome += t.amount;
+            } else {
+              monthlyDataMap[monthKey].expenses += t.amount;
+              totalExpenses += t.amount;
+            }
+          }
+        });
+
+        const processedChartData = Object.keys(monthlyDataMap).map(key => ({
+          month: format(new Date(key + '-02'), 'MMM', { locale: es }),
+          income: monthlyDataMap[key].income,
+          expenses: monthlyDataMap[key].expenses,
+        }));
+        
+        setChartData(processedChartData);
+        setSummaryData({
+          totalIncome,
+          totalExpenses,
+          netFlow: totalIncome - totalExpenses,
+        });
+
+      } catch (error) {
+        console.error("Error fetching report data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReportData();
+  }, [user]);
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-start">
@@ -51,38 +127,46 @@ export default function ReportsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
-            <ArrowUpRight className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${summaryData.totalIncome.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+12.4% del último período</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gastos Totales</CardTitle>
-            <ArrowDownLeft className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${summaryData.totalExpenses.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+20.1% del último período</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Flujo Neto</CardTitle>
-            <Milestone className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${summaryData.netFlow > 0 ? "text-primary" : "text-destructive"}`}>
-              ${summaryData.netFlow.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">Resumen de ingresos vs. gastos</p>
-          </CardContent>
-        </Card>
+        {loading ? (
+          Array.from({ length: 3 }).map((_, index) => (
+            <Card key={index}><CardHeader><Skeleton className="h-5 w-3/4" /></CardHeader><CardContent><Skeleton className="h-8 w-1/2 mb-2" /><Skeleton className="h-4 w-1/4" /></CardContent></Card>
+          ))
+        ) : (
+          <>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
+                <ArrowUpRight className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">${summaryData.totalIncome.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">En los últimos 6 meses</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Gastos Totales</CardTitle>
+                <ArrowDownLeft className="h-4 w-4 text-destructive" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">${summaryData.totalExpenses.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">En los últimos 6 meses</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Flujo Neto</CardTitle>
+                <Milestone className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${summaryData.netFlow >= 0 ? "text-primary" : "text-destructive"}`}>
+                  ${summaryData.netFlow.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">Resumen de ingresos vs. gastos</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
       
       <Card>
@@ -91,17 +175,23 @@ export default function ReportsPage() {
           <CardDescription>Ingresos y Gastos por mes</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={chartConfig} className="h-[350px] w-full">
-            <BarChart data={chartData} accessibilityLayer>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" />
-              <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
-              <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
-              <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-              <Legend />
-              <Bar dataKey="income" fill="var(--color-income)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="expenses" fill="var(--color-expenses)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ChartContainer>
+          {loading ? (
+             <div className="h-[350px] w-full flex items-center justify-center">
+                <Skeleton className="h-full w-full" />
+             </div>
+          ) : (
+            <ChartContainer config={chartConfig} className="h-[350px] w-full">
+              <BarChart data={chartData} accessibilityLayer>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
+                <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                <Legend />
+                <Bar dataKey="income" fill="var(--color-income)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="expenses" fill="var(--color-expenses)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
+          )}
         </CardContent>
       </Card>
     </div>
