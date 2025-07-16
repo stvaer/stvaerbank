@@ -60,10 +60,10 @@ export default function SchedulerPage() {
             });
             setBills(billsData);
         } catch (error) {
-            console.error("Error fetching bills: ", error);
+            console.error("Error al obtener facturas: ", error);
             toast({
                 title: "Error",
-                description: "Could not fetch bills.",
+                description: "No se pudieron obtener las facturas.",
                 variant: "destructive",
             });
         } finally {
@@ -82,15 +82,15 @@ export default function SchedulerPage() {
         });
         setBills(prev => [...prev, { ...data, id: docRef.id }].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()));
         toast({
-            title: "Bill Scheduled",
-            description: `${data.name} for $${data.amount} has been added.`,
+            title: "Factura Programada",
+            description: `${data.name} por $${data.amount} ha sido añadida.`,
         });
         form.reset();
     } catch (error) {
-        console.error("Error adding bill: ", error);
+        console.error("Error al añadir factura: ", error);
         toast({
             title: "Error",
-            description: "Could not schedule bill.",
+            description: "No se pudo programar la factura.",
             variant: "destructive",
         });
     }
@@ -104,15 +104,15 @@ export default function SchedulerPage() {
         await deleteDoc(doc(db, "bills", id));
         setBills(prev => prev.filter((bill) => bill.id !== id));
         toast({
-            title: "Bill Removed",
-            description: `${billToRemove.name} has been removed from the schedule.`,
+            title: "Factura Eliminada",
+            description: `${billToRemove.name} ha sido eliminada del calendario.`,
             variant: "destructive"
         });
     } catch (error) {
-        console.error("Error removing bill: ", error);
+        console.error("Error al eliminar factura: ", error);
         toast({
             title: "Error",
-            description: "Could not remove bill.",
+            description: "No se pudo eliminar la factura.",
             variant: "destructive",
         });
     }
@@ -123,8 +123,8 @@ export default function SchedulerPage() {
       <div className="md:col-span-1">
         <Card>
           <CardHeader>
-            <CardTitle>Schedule a Bill</CardTitle>
-            <CardDescription>Add a new bill reminder to your schedule.</CardDescription>
+            <CardTitle>Programar una Factura</CardTitle>
+            <CardDescription>Añade un nuevo recordatorio de factura a tu calendario.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -134,9 +134,9 @@ export default function SchedulerPage() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Bill Name</FormLabel>
+                      <FormLabel>Nombre de la Factura</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. Netflix" {...field} />
+                        <Input placeholder="ej. Netflix" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -147,7 +147,7 @@ export default function SchedulerPage() {
                   name="amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Amount</FormLabel>
+                      <FormLabel>Monto</FormLabel>
                       <FormControl>
                         <Input type="number" placeholder="0.00" {...field} />
                       </FormControl>
@@ -160,7 +160,7 @@ export default function SchedulerPage() {
                   name="dueDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Due Date</FormLabel>
+                      <FormLabel>Fecha de Vencimiento</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -174,7 +174,7 @@ export default function SchedulerPage() {
                               {field.value ? (
                                 format(field.value, "PPP")
                               ) : (
-                                <span>Pick a date</span>
+                                <span>Elige una fecha</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
@@ -196,7 +196,7 @@ export default function SchedulerPage() {
                 />
                 <Button type="submit" className="w-full">
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Bill
+                  Añadir Factura
                 </Button>
               </form>
             </Form>
@@ -207,17 +207,17 @@ export default function SchedulerPage() {
       <div className="md:col-span-2">
         <Card>
           <CardHeader>
-            <CardTitle>Upcoming Bills</CardTitle>
-             <CardDescription>A list of your scheduled payment reminders.</CardDescription>
+            <CardTitle>Facturas Próximas</CardTitle>
+             <CardDescription>Una lista de tus recordatorios de pago programados.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Bill</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+                  <TableHead>Factura</TableHead>
+                  <TableHead>Fecha Vencimiento</TableHead>
+                  <TableHead className="text-right">Monto</TableHead>
+                  <TableHead className="text-right">Acción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
-import { collection, getDocs, Timestamp, query, where } from "firebase/firestore";
+import { collection, getDocs, Timestamp, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Transaction } from "@/lib/schemas";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,20 +38,17 @@ export default function DashboardPage() {
         const totalIncome = transactionsData.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
         const totalExpense = transactionsData.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
         const totalBalance = totalIncome - totalExpense;
-
-        // Note: Checking/Savings/Credit Card are simplified as we don't have account info in transactions
-        const checkingAccount = totalBalance * 0.4; // Dummy calculation
-        const savingsAccount = totalBalance * 0.6; // Dummy calculation
-        const creditCard = -Math.abs(transactionsData.filter(t => t.category === "Housing").reduce((acc, t) => acc + t.amount, 0)); // Dummy
+        const checkingAccount = totalBalance * 0.4;
+        const savingsAccount = totalBalance * 0.6;
+        const creditCard = -Math.abs(transactionsData.filter(t => t.category === "Housing").reduce((acc, t) => acc + t.amount, 0));
 
         setBalances([
-          { name: "Total Balance", value: totalBalance, icon: DollarSign, color: "text-primary" },
-          { name: "Checking Account", value: checkingAccount, icon: Landmark, color: "text-muted-foreground" },
-          { name: "Savings Account", value: savingsAccount, icon: Banknote, color: "text-muted-foreground" },
-          { name: "Credit Card", value: creditCard, icon: CreditCard, color: "text-muted-foreground" },
+          { name: "Balance Total", value: totalBalance, icon: DollarSign, color: "text-primary" },
+          { name: "Cuenta Corriente", value: checkingAccount, icon: Landmark, color: "text-muted-foreground" },
+          { name: "Cuenta de Ahorros", value: savingsAccount, icon: Banknote, color: "text-muted-foreground" },
+          { name: "Tarjeta de Crédito", value: creditCard, icon: CreditCard, color: "text-muted-foreground" },
         ]);
 
-        // Generate chart data for last 6 months
         const monthlyData: Array<{ month: string; balance: number }> = [];
         let currentBalance = totalBalance;
         
@@ -72,14 +69,13 @@ export default function DashboardPage() {
             
             monthlyData.unshift({ month: monthName, balance: currentBalance });
             
-            // Subtract this month's net change to get previous month's balance
             currentBalance -= (monthIncome - monthExpense);
         }
         
         setChartData(monthlyData);
 
       } catch (error) {
-        console.error("Error fetching dashboard data: ", error);
+        console.error("Error al obtener datos del dashboard: ", error);
       } finally {
         setLoading(false);
       }
@@ -118,7 +114,7 @@ export default function DashboardPage() {
                   }).format(item.value)}
                 </div>
                  <p className="text-xs text-muted-foreground">
-                  Updated just now
+                  Actualizado ahora mismo
                 </p>
               </CardContent>
             </Card>
@@ -127,7 +123,7 @@ export default function DashboardPage() {
       </div>
       <Card className="bg-card/50 backdrop-blur-sm border-border/50">
         <CardHeader>
-          <CardTitle>Balance Overview</CardTitle>
+          <CardTitle>Resumen de Balance</CardTitle>
         </CardHeader>
         <CardContent className="pl-2">
           {loading ? (

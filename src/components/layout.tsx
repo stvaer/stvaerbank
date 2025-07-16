@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AreaChart, ArrowRightLeft, CalendarClock, LayoutDashboard } from "lucide-react";
+import { getAuth, onAuthStateChanged, User } from "firebase/auth";
+import { app } from "@/lib/firebase";
+import { useEffect, useState } from "react";
 
 import {
   SidebarProvider,
@@ -20,17 +23,33 @@ import { Logo } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "./ui/separator";
+import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/transactions", label: "Transactions", icon: ArrowRightLeft },
-  { href: "/scheduler", label: "Scheduler", icon: CalendarClock },
-  { href: "/reports", label: "Reports", icon: AreaChart },
+  { href: "/transactions", label: "Transacciones", icon: ArrowRightLeft },
+  { href: "/scheduler", label: "Calendario", icon: CalendarClock },
+  { href: "/reports", label: "Reportes", icon: AreaChart },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const pageTitle = navItems.find(item => pathname.startsWith(item.href))?.label || "Dashboard";
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const auth = getAuth(app);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        router.push("/login");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   return (
     <SidebarProvider>
@@ -63,11 +82,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
            <div className="flex items-center gap-3 p-2">
              <Avatar>
                <AvatarImage data-ai-hint="person abstract" src="https://placehold.co/40x40.png" alt="@user" />
-               <AvatarFallback>U</AvatarFallback>
+               <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
              </Avatar>
-             <div className="flex flex-col">
-                <span className="text-sm font-medium">User</span>
-                <span className="text-xs text-muted-foreground">user@email.com</span>
+             <div className="flex flex-col truncate">
+                <span className="text-sm font-medium truncate">{user?.displayName || "Usuario"}</span>
+                <span className="text-xs text-muted-foreground truncate">{user?.email || "cargando..."}</span>
              </div>
            </div>
         </SidebarFooter>
@@ -79,7 +98,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
              <h2 className="text-lg font-semibold font-headline">{pageTitle}</h2>
           </div>
           <Button variant="outline" className="border-primary text-primary hover:bg-primary/10 hover:text-primary">
-            New Transaction
+            Nueva Transacción
           </Button>
         </header>
         <main className="flex-1 p-4 sm:p-6 bg-background/95">

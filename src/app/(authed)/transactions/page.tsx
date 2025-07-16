@@ -65,10 +65,10 @@ export default function TransactionsPage() {
         });
         setTransactions(transactionsData);
       } catch (error) {
-        console.error("Error fetching transactions: ", error);
+        console.error("Error al obtener transacciones: ", error);
         toast({
           title: "Error",
-          description: "Could not fetch transactions.",
+          description: "No se pudieron obtener las transacciones.",
           variant: "destructive",
         });
       } finally {
@@ -91,15 +91,15 @@ export default function TransactionsPage() {
       setTransactions(newTransactions);
 
       toast({
-        title: "Transaction Added",
-        description: `${data.description} for $${data.amount} has been recorded.`,
+        title: "Transacción Añadida",
+        description: `${data.description} por $${data.amount} ha sido registrada.`,
       });
       form.reset();
     } catch (error) {
-      console.error("Error adding transaction: ", error);
+      console.error("Error al añadir transacción: ", error);
        toast({
         title: "Error",
-        description: "Could not add transaction.",
+        description: "No se pudo añadir la transacción.",
         variant: "destructive",
       });
     }
@@ -110,8 +110,8 @@ export default function TransactionsPage() {
       <div className="lg:col-span-1">
         <Card>
           <CardHeader>
-            <CardTitle>New Transaction</CardTitle>
-            <CardDescription>Manually record income or an expense.</CardDescription>
+            <CardTitle>Nueva Transacción</CardTitle>
+            <CardDescription>Registra un ingreso o un gasto manualmente.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -121,9 +121,9 @@ export default function TransactionsPage() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description</FormLabel>
+                      <FormLabel>Descripción</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. Coffee" {...field} />
+                        <Input placeholder="ej. Café" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -134,7 +134,7 @@ export default function TransactionsPage() {
                   name="amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Amount</FormLabel>
+                      <FormLabel>Monto</FormLabel>
                       <FormControl>
                         <Input type="number" placeholder="0.00" {...field} />
                       </FormControl>
@@ -147,7 +147,7 @@ export default function TransactionsPage() {
                   name="type"
                   render={({ field }) => (
                     <FormItem className="space-y-3">
-                      <FormLabel>Type</FormLabel>
+                      <FormLabel>Tipo</FormLabel>
                       <FormControl>
                         <RadioGroup
                           onValueChange={field.onChange}
@@ -158,13 +158,13 @@ export default function TransactionsPage() {
                             <FormControl>
                               <RadioGroupItem value="income" />
                             </FormControl>
-                            <FormLabel className="font-normal">Income</FormLabel>
+                            <FormLabel className="font-normal">Ingreso</FormLabel>
                           </FormItem>
                           <FormItem className="flex items-center space-x-2 space-y-0">
                             <FormControl>
                               <RadioGroupItem value="expense" />
                             </FormControl>
-                            <FormLabel className="font-normal">Expense</FormLabel>
+                            <FormLabel className="font-normal">Gasto</FormLabel>
                           </FormItem>
                         </RadioGroup>
                       </FormControl>
@@ -177,21 +177,21 @@ export default function TransactionsPage() {
                   name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
+                      <FormLabel>Categoría</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a category" />
+                            <SelectValue placeholder="Selecciona una categoría" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Food">Food</SelectItem>
-                          <SelectItem value="Transport">Transport</SelectItem>
-                          <SelectItem value="Housing">Housing</SelectItem>
-                          <SelectItem value="Entertainment">Entertainment</SelectItem>
-                          <SelectItem value="Salary">Salary</SelectItem>
-                          <SelectItem value="Side Hustle">Side Hustle</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
+                          <SelectItem value="Food">Comida</SelectItem>
+                          <SelectItem value="Transport">Transporte</SelectItem>
+                          <SelectItem value="Housing">Vivienda</SelectItem>
+                          <SelectItem value="Entertainment">Entretenimiento</SelectItem>
+                          <SelectItem value="Salary">Salario</SelectItem>
+                          <SelectItem value="Side Hustle">Extra</SelectItem>
+                          <SelectItem value="Other">Otro</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -203,7 +203,7 @@ export default function TransactionsPage() {
                   name="date"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Date</FormLabel>
+                      <FormLabel>Fecha</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -214,7 +214,7 @@ export default function TransactionsPage() {
                                 !field.value && "text-muted-foreground"
                               )}
                             >
-                              {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                              {field.value ? format(field.value, "PPP") : <span>Elige una fecha</span>}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
                           </FormControl>
@@ -233,7 +233,7 @@ export default function TransactionsPage() {
                   )}
                 />
                 <Button type="submit" className="w-full">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
+                  <PlusCircle className="mr-2 h-4 w-4" /> Añadir Transacción
                 </Button>
               </form>
             </Form>
@@ -244,18 +244,18 @@ export default function TransactionsPage() {
       <div className="lg:col-span-2">
         <Card>
           <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
-            <CardDescription>Your last recorded financial movements.</CardDescription>
+            <CardTitle>Transacciones Recientes</CardTitle>
+            <CardDescription>Tus últimos movimientos financieros registrados.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead className="text-right">Monto</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -275,9 +275,9 @@ export default function TransactionsPage() {
                       <TableCell className="font-medium">{tx.description}</TableCell>
                       <TableCell>
                         {tx.type === 'income' ? (
-                          <span className="flex items-center text-primary"><ArrowUp className="mr-1 h-4 w-4" /> Income</span>
+                          <span className="flex items-center text-primary"><ArrowUp className="mr-1 h-4 w-4" /> Ingreso</span>
                         ) : (
-                          <span className="flex items-center text-destructive"><ArrowDown className="mr-1 h-4 w-4" /> Expense</span>
+                          <span className="flex items-center text-destructive"><ArrowDown className="mr-1 h-4 w-4" /> Gasto</span>
                         )}
                       </TableCell>
                       <TableCell><Badge variant="outline">{tx.category}</Badge></TableCell>

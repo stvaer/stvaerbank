@@ -2,19 +2,24 @@
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { app } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { LoginLogo } from "@/components/login/logo-button";
-
-const CORRECT_CODE = "192438";
+import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [email, setEmail] = useState("");
   const [pin, setPin] = useState<string[]>(Array(6).fill(""));
   const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const gridSpotlightRef = useRef<HTMLDivElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
+
+  const auth = getAuth(app);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -31,7 +36,9 @@ export default function LoginPage() {
   const openModal = () => {
     setIsModalOpen(true);
     setPin(Array(6).fill(""));
+    setEmail("");
     setError(false);
+    setErrorMessage("");
     setTimeout(() => inputRefs.current[0]?.focus(), 100);
   };
 
@@ -53,6 +60,10 @@ export default function LoginPage() {
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
+    
+    if (newPin.every(p => p !== '')) {
+        handleLogin();
+    }
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {
@@ -65,27 +76,49 @@ export default function LoginPage() {
     }
   };
 
-  const checkCode = () => {
-    if (pin.join("") === CORRECT_CODE) {
-      router.push("/dashboard");
-    } else {
+  const handleLogin = async () => {
+    setError(false);
+    setErrorMessage("");
+
+    if (!email) {
       setError(true);
+      setErrorMessage("Por favor, introduce tu correo.");
+      return;
+    }
+
+    const password = pin.join("");
+    if (password.length < 6) {
+      setError(true);
+      setErrorMessage("El PIN debe tener 6 dígitos.");
+      return;
+    }
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      router.push("/dashboard");
+    } catch (error: any) {
+      setError(true);
+      switch (error.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          setErrorMessage("Correo o PIN incorrecto.");
+          break;
+        case 'auth/invalid-email':
+          setErrorMessage("El formato del correo no es válido.");
+          break;
+        default:
+          setErrorMessage("Error al iniciar sesión. Inténtalo de nuevo.");
+          break;
+      }
       modalContentRef.current?.classList.add("shake");
       setTimeout(() => {
         modalContentRef.current?.classList.remove("shake");
-        setError(false);
         setPin(Array(6).fill(""));
         inputRefs.current[0]?.focus();
       }, 800);
     }
   };
-  
-  useEffect(() => {
-      if (pin.every(p => p !== '')) {
-          checkCode();
-      }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pin]);
 
   return (
     <div className="flex items-center justify-center h-screen bg-black text-white overflow-hidden">
@@ -111,7 +144,17 @@ export default function LoginPage() {
             )}
           >
             <div className="flex flex-col items-center justify-center">
-              <div className="mb-8 flex justify-center space-x-2">
+              <div className="w-full mb-4">
+                 <Input 
+                   type="email"
+                   placeholder="correo@ejemplo.com"
+                   className="bg-white/90 text-black text-center"
+                   value={email}
+                   onChange={(e) => setEmail(e.target.value)}
+                 />
+              </div>
+
+              <div className="mb-6 flex justify-center space-x-2">
                 {pin.map((digit, index) => (
                   <input
                     key={index}
@@ -130,6 +173,8 @@ export default function LoginPage() {
                   />
                 ))}
               </div>
+              
+              {errorMessage && <p className="text-red-500 text-xs mb-4">{errorMessage}</p>}
 
               <div className="flex space-x-4 w-full">
                 <button
@@ -139,7 +184,7 @@ export default function LoginPage() {
                   CANCELAR
                 </button>
                 <button
-                  onClick={checkCode}
+                  onClick={handleLogin}
                   className="terminal-button w-1/2 py-3 text-sm"
                 >
                   INICIAR
