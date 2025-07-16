@@ -146,4 +146,22 @@ body {
     .shake {
         animation: shake 0.5s;
     }
+
+    /* Custom Calendar Styles */
+    .rdp-day:not(.rdp-day_outside) {
+        color: hsl(var(--primary));
+    }
+    .rdp-day_today:not(.rdp-day_outside) {
+      color: hsl(var(--accent-foreground));
+    }
+    .bill-due-day {
+        font-weight: bold;
+        background-color: hsl(var(--primary) / 0.1);
+        border: 1px solid hsl(var(--primary) / 0.3);
+        color: hsl(var(--primary));
+        position: relative;
+    }
+     .bill-due-day:hover {
+        background-color: hsl(var(--primary) / 0.2);
+    }
 }

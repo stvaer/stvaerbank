@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
-import { Calendar as CalendarIcon, PlusCircle, Trash2 } from "lucide-react"
+import { Calendar as CalendarIcon, PlusCircle, Trash2, Banknote } from "lucide-react"
 import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp, where } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
@@ -35,6 +35,7 @@ interface BillWithId extends Bill {
 export default function SchedulerPage() {
   const [bills, setBills] = useState<BillWithId[]>([]);
   const [loading, setLoading] = useState(true);
+  const [billDates, setBillDates] = useState<Date[]>([]);
   const { toast } = useToast();
   const auth = getAuth(app);
   const user = auth.currentUser;
@@ -70,6 +71,7 @@ export default function SchedulerPage() {
                 } as BillWithId;
             });
             setBills(billsData);
+            setBillDates(billsData.map(bill => bill.dueDate));
         } catch (error) {
             console.error("Error al obtener facturas: ", error);
             toast({
@@ -101,7 +103,9 @@ export default function SchedulerPage() {
             dueDate: Timestamp.fromDate(data.dueDate),
         });
         const newBill: BillWithId = { ...data, id: docRef.id };
-        setBills(prev => [...prev, newBill].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()));
+        const updatedBills = [...bills, newBill].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+        setBills(updatedBills);
+        setBillDates(updatedBills.map(bill => bill.dueDate));
         toast({
             title: "Factura Programada",
             description: `${data.name} por $${data.amount} ha sido añadida.`,
@@ -123,7 +127,9 @@ export default function SchedulerPage() {
 
     try {
         await deleteDoc(doc(db, "bills", id));
-        setBills(prev => prev.filter((bill) => bill.id !== id));
+        const updatedBills = bills.filter((bill) => bill.id !== id);
+        setBills(updatedBills);
+        setBillDates(updatedBills.map(bill => bill.dueDate));
         toast({
             title: "Factura Eliminada",
             description: `${billToRemove.name} ha sido eliminada del calendario.`,
@@ -139,9 +145,19 @@ export default function SchedulerPage() {
     }
   }
 
+  const modifiers = {
+    billDay: billDates,
+  };
+
+  const modifiersClassNames = {
+    billDay: 'bill-due-day',
+  };
+  
+  const BillIcon = () => <Banknote className="h-3 w-3 text-white absolute bottom-1 right-1" />;
+
   return (
     <div className="grid md:grid-cols-3 gap-6 animate-fade-in">
-      <div className="md:col-span-1">
+      <div className="md:col-span-1 space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Programar una Factura</CardTitle>
@@ -222,6 +238,27 @@ export default function SchedulerPage() {
               </form>
             </Form>
           </CardContent>
+        </Card>
+        <Card className="hidden md:block">
+            <CardContent className="p-0">
+                 <Calendar
+                    mode="single"
+                    modifiers={modifiers}
+                    modifiersClassNames={modifiersClassNames}
+                    components={{
+                        DayContent: (props) => {
+                            const isBillDay = billDates.some(d => format(d, 'yyyy-MM-dd') === format(props.date, 'yyyy-MM-dd'));
+                            return (
+                                <div className="relative h-full w-full flex items-center justify-center">
+                                    <span>{props.date.getDate()}</span>
+                                    {isBillDay && <BillIcon />}
+                                </div>
+                            );
+                        }
+                    }}
+                    className="p-3"
+                 />
+            </CardContent>
         </Card>
       </div>
 
