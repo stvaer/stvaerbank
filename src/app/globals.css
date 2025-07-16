@@ -87,3 +87,63 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+    .terminal-window {
+        @apply border border-white/10 bg-black/80 backdrop-blur-md rounded-xl shadow-lg;
+    }
+    .terminal-button {
+        @apply bg-black/70 border border-white/10 text-white transition-all tracking-wider rounded-lg;
+    }
+    .terminal-button:hover {
+        @apply bg-white/10 shadow-[0_0_10px_rgba(255,255,255,0.2)];
+    }
+    .cancel-button {
+      @apply bg-black/70 border border-red-500/30 text-red-500;
+    }
+    .cancel-button:hover {
+      @apply bg-red-500/10;
+    }
+
+    .digit-input {
+        @apply w-10 h-12 bg-white/90 rounded-lg text-black text-lg font-medium text-center transition-all cursor-pointer;
+        -webkit-text-security: disc;
+    }
+    .digit-input:focus {
+        @apply outline-none ring-2 ring-white/50;
+    }
+    .digit-input.filled {
+        @apply bg-white shadow-[0_0_10px_rgba(255,255,255,0.3)];
+    }
+
+    .grid-container {
+        @apply fixed inset-0 pointer-events-none -z-10 overflow-hidden;
+    }
+    .grid-lines {
+        @apply absolute inset-0 transition-all duration-500 ease-in-out;
+        background-image: 
+            linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        background-size: 40px 40px;
+    }
+    .grid-spotlight {
+        @apply absolute inset-0 opacity-0 transition-opacity duration-300 ease-in-out;
+        background: radial-gradient(
+            circle 100px at var(--x) var(--y),
+            transparent 0%,
+            transparent 20%,
+            rgba(0, 0, 0, 0.95) 40%,
+            rgba(0, 0, 0, 0.98) 60%
+        );
+        mix-blend-mode: multiply;
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+    .shake {
+        animation: shake 0.5s;
+    }
+}
