@@ -65,7 +65,7 @@ export default function TransactionsPage() {
     if (watchedCategory === 'Salario') {
       form.setValue('type', 'income');
     }
-  }, [watchedCategory, form]);
+  }, [watchedCategory, form.setValue]);
   
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -123,13 +123,17 @@ export default function TransactionsPage() {
     if (data.category !== 'Salario' || !data.hasAdvance) {
       delete transactionData.hasAdvance;
       delete transactionData.advanceAmount;
+    } else if (data.category === 'Salario' && !data.hasAdvance) {
+        delete transactionData.advanceAmount;
     }
+
 
     try {
       await addDoc(collection(db, "transactions"), transactionData);
       
-      const newTransactions = [data, ...transactions].sort((a,b) => b.date.getTime() - a.date.getTime());
-      setTransactions(newTransactions);
+      const newTransaction = { ...data, date: data.date };
+      const newTransactions = [newTransaction, ...transactions].sort((a,b) => b.date.getTime() - a.date.getTime());
+      setTransactions(newTransactions as Transaction[]);
 
       toast({
         title: "Transacción Añadida",
@@ -177,7 +181,7 @@ export default function TransactionsPage() {
                     <FormItem>
                       <FormLabel>Monto</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="0.00" {...field} />
+                        <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -192,7 +196,7 @@ export default function TransactionsPage() {
                       <FormControl>
                         <RadioGroup
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
                           className="flex space-x-4"
                           disabled={watchedCategory === 'Salario'}
                         >
@@ -231,7 +235,7 @@ export default function TransactionsPage() {
                           <SelectItem value="Transport">Transporte</SelectItem>
                           <SelectItem value="Housing">Vivienda</SelectItem>
                           <SelectItem value="Entertainment">Entretenimiento</SelectItem>
-                          <SelectItem value="Salary">Salario</SelectItem>
+                          <SelectItem value="Salario">Salario</SelectItem>
                           <SelectItem value="Side Hustle">Extra</SelectItem>
                           <SelectItem value="Other">Otro</SelectItem>
                         </SelectContent>
@@ -268,7 +272,7 @@ export default function TransactionsPage() {
                            <FormItem>
                              <FormLabel>Monto del Adelanto</FormLabel>
                              <FormControl>
-                               <Input type="number" placeholder="0.00" {...field} />
+                               <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                              </FormControl>
                              <FormMessage />
                            </FormItem>
