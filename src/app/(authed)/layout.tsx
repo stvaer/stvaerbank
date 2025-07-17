@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import type { User } from 'firebase/auth';
 import { AppLayout } from "@/components/layout";
+import { useRouter } from 'next/navigation';
 
 export default function AuthedLayout({
   children,
@@ -15,6 +16,7 @@ export default function AuthedLayout({
   const [db, setDb] = useState<any>(null);
   const [firebaseUtils, setFirebaseUtils] = useState<any>(null);
   const [auth, setAuth] = useState<any>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const init = async () => {
@@ -43,17 +45,19 @@ export default function AuthedLayout({
       const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
         setUser(currentUser);
         setFirebaseReady(true);
+        if (!currentUser) {
+          router.push('/login');
+        }
       });
 
       return () => unsubscribe();
     };
 
     init();
-  }, []);
+  }, [router]);
 
   const childrenWithProps = React.Children.map(children, child => {
     if (React.isValidElement(child)) {
-      // Cloning element and passing all the necessary props.
       return React.cloneElement(child, { user, db, firebaseUtils, auth } as React.Attributes & { user: User | null, db: any, firebaseUtils: any, auth: any });
     }
     return child;
@@ -61,7 +65,7 @@ export default function AuthedLayout({
 
   return (
     <AppLayout user={user} auth={auth} db={db} firebaseUtils={firebaseUtils} firebaseReady={firebaseReady}>
-      {firebaseReady ? childrenWithProps : <div>Loading...</div>}
+      {firebaseReady && user ? childrenWithProps : <div>Loading...</div>}
     </AppLayout>
   );
 }

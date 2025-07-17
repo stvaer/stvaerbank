@@ -16,16 +16,14 @@ export default function LoginPage() {
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
-  const [auth, setAuth] = useState<Auth | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const gridSpotlightRef = useRef<HTMLDivElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const initFirebase = async () => {
-        const { initializeFirebase, firebaseAuth } = await import('@/lib/firebase');
+        const { initializeFirebase } = await import('@/lib/firebase');
         initializeFirebase();
-        setAuth(firebaseAuth);
         setIsFirebaseReady(true);
     };
     initFirebase();
@@ -82,7 +80,7 @@ export default function LoginPage() {
   };
 
   const handleLogin = async () => {
-    if (!isFirebaseReady || !auth) {
+    if (!isFirebaseReady) {
         setErrorMessage("Firebase no está listo. Inténtalo de nuevo.");
         setError(true);
         return;
@@ -105,7 +103,8 @@ export default function LoginPage() {
 
     try {
       const { signInWithEmailAndPassword } = await import("firebase/auth");
-      await signInWithEmailAndPassword(auth, email, password);
+      const { firebaseAuth } = await import("@/lib/firebase");
+      await signInWithEmailAndPassword(firebaseAuth, email, password);
       router.push("/dashboard");
     } catch (error: any) {
       setError(true);

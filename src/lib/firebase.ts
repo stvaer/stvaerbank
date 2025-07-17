@@ -6,20 +6,18 @@ import { getAuth, Auth } from "firebase/auth";
 import { firebaseConfig } from "./firebase-config";
 
 // Initialize Firebase for client-side and export instances
-let app: FirebaseApp | null = null;
-let firebaseAuth: Auth | null = null;
-let db: Firestore | null = null;
+let app: FirebaseApp;
+let firebaseAuth: Auth;
+let db: Firestore;
 
 function initializeFirebase() {
-    if (typeof window !== 'undefined') {
-        if (!getApps().length) {
-            app = initializeApp(firebaseConfig);
-        } else {
-            app = getApp();
-        }
-        firebaseAuth = getAuth(app);
-        db = getFirestore(app);
+    if (getApps().length === 0) {
+        app = initializeApp(firebaseConfig);
+    } else {
+        app = getApp();
     }
+    firebaseAuth = getAuth(app);
+    db = getFirestore(app);
 }
 
 export { app, db, firebaseAuth, initializeFirebase };
