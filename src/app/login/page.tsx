@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, signInWithEmailAndPassword, Auth } from "firebase/auth";
-import { initializeFirebase, app } from "@/lib/firebase";
+import { initializeFirebase, auth as firebaseAuth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
@@ -23,7 +23,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     initializeFirebase();
-    setAuth(getAuth(app!));
+    setAuth(firebaseAuth);
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isModalOpen && gridSpotlightRef.current) {
