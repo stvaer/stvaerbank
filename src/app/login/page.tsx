@@ -3,7 +3,8 @@
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { Auth, Unsubscribe } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { firebaseAuth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
@@ -15,19 +16,12 @@ export default function LoginPage() {
   const [pin, setPin] = useState<string[]>(Array(6).fill(""));
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+  const [isFirebaseReady, setIsFirebaseReady] = useState(true); // Assume ready
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const gridSpotlightRef = useRef<HTMLDivElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const initFirebase = async () => {
-        const { initializeFirebase } = await import('@/lib/firebase');
-        initializeFirebase();
-        setIsFirebaseReady(true);
-    };
-    initFirebase();
-
     const handleMouseMove = (e: MouseEvent) => {
       if (!isModalOpen && gridSpotlightRef.current) {
         gridSpotlightRef.current.style.setProperty("--x", `${e.clientX}px`);
@@ -76,15 +70,12 @@ export default function LoginPage() {
       inputRefs.current[index - 1]?.focus();
     } else if (e.key === "ArrowRight" && index < 5) {
       inputRefs.current[index + 1]?.focus();
+    } else if (e.key === "Enter") {
+        handleLogin();
     }
   };
 
   const handleLogin = async () => {
-    if (!isFirebaseReady) {
-        setErrorMessage("Firebase no está listo. Inténtalo de nuevo.");
-        setError(true);
-        return;
-    }
     setError(false);
     setErrorMessage("");
     
@@ -102,8 +93,6 @@ export default function LoginPage() {
     }
 
     try {
-      const { signInWithEmailAndPassword } = await import("firebase/auth");
-      const { firebaseAuth } = await import("@/lib/firebase");
       await signInWithEmailAndPassword(firebaseAuth, email, password);
       router.push("/dashboard");
     } catch (error: any) {

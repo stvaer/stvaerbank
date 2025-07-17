@@ -2,9 +2,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import type { User } from 'firebase/auth';
+import type { User, Unsubscribe } from 'firebase/auth';
 import { AppLayout } from "@/components/layout";
 import { useRouter } from 'next/navigation';
+import { firebaseAuth } from "@/lib/firebase";
+import { getFirestore, collection, getDocs, query, where, Timestamp, orderBy, deleteDoc, addDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { getAuth, signOut } from 'firebase/auth';
 
 export default function AuthedLayout({
   children,
@@ -19,43 +22,35 @@ export default function AuthedLayout({
   const router = useRouter();
 
   useEffect(() => {
-    const init = async () => {
-      const { initializeFirebase } = await import('@/lib/firebase');
-      const { getFirestore, collection, getDocs, query, where, Timestamp, orderBy, deleteDoc, addDoc, updateDoc, writeBatch } = await import('firebase/firestore');
-      const { getAuth, onAuthStateChanged, signOut } = await import('firebase/auth');
+    const authInstance = getAuth();
+    const dbInstance = getFirestore();
+    const { onAuthStateChanged } = require("firebase/auth");
 
-      const app = initializeFirebase();
-      const authInstance = getAuth(app);
-      const dbInstance = getFirestore(app);
+    setAuth(authInstance);
+    setDb(dbInstance);
+    setFirebaseUtils({
+      collection,
+      getDocs,
+      query,
+      where,
+      Timestamp,
+      orderBy,
+      deleteDoc,
+      addDoc,
+      updateDoc,
+      writeBatch,
+      signOut,
+    });
+    
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
+      setUser(currentUser);
+      setFirebaseReady(true);
+      if (!currentUser) {
+        router.push('/login');
+      }
+    });
 
-      setAuth(authInstance);
-      setDb(dbInstance);
-      setFirebaseUtils({
-        collection,
-        getDocs,
-        query,
-        where,
-        Timestamp,
-        orderBy,
-        deleteDoc,
-        addDoc,
-        updateDoc,
-        writeBatch,
-        signOut,
-      });
-
-      const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
-        setUser(currentUser);
-        setFirebaseReady(true);
-        if (!currentUser) {
-          router.push('/login');
-        }
-      });
-
-      return () => unsubscribe();
-    };
-
-    init();
+    return () => unsubscribe();
   }, [router]);
 
   const childrenWithProps = React.Children.map(children, child => {

@@ -7,17 +7,17 @@ import { firebaseConfig } from "./firebase-config";
 
 // Initialize Firebase for client-side and export instances
 let app: FirebaseApp;
-let firebaseAuth: Auth;
-let db: Firestore;
+if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+} else {
+    app = getApp();
+}
 
+const firebaseAuth: Auth = getAuth(app);
+const db: Firestore = getFirestore(app);
+
+// This function is kept for compatibility but the initialization is now eager.
 function initializeFirebase(): FirebaseApp {
-    if (getApps().length === 0) {
-        app = initializeApp(firebaseConfig);
-    } else {
-        app = getApp();
-    }
-    firebaseAuth = getAuth(app);
-    db = getFirestore(app);
     return app;
 }
 
