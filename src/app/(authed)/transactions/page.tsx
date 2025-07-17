@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, addDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
@@ -74,39 +74,13 @@ export default function TransactionsPage() {
   const watchedCategory = form.watch("category");
   const watchedHasAdvance = form.watch("hasAdvance");
 
-  useEffect(() => {
-    if (user) {
-        fetchTransactions(user.uid);
-    }
-  }, [user, filterType, date, dateRange]);
-
-
-  useEffect(() => {
-    // When category changes, reset loan details if it's not a loan
-    if (watchedCategory !== 'Préstamo') {
-      form.setValue('loanDetails', {
-        loanId: '',
-        totalAmount: 0,
-        installments: 0,
-        frequency: 'monthly',
-        startDate: new Date(),
-      });
-    }
-    // Automatically set type based on category
-    if (watchedCategory === 'Salario' || watchedCategory === 'Préstamo') {
-        form.setValue('type', 'income');
-    } else {
-        form.setValue('type', 'expense');
-    }
-  }, [watchedCategory, form.setValue, form.resetField]);
   
-  
-  const fetchTransactions = async (uid: string) => {
+  const fetchTransactions = useCallback(async (uid: string) => {
     setLoading(true);
     try {
         let q;
         const baseQuery = collection(db, "transactions");
-        let constraints = [where("userId", "==", uid)];
+        let constraints: any[] = [where("userId", "==", uid)];
 
         switch (filterType) {
             case "today":
@@ -162,8 +136,7 @@ export default function TransactionsPage() {
     } finally {
         setLoading(false);
     }
-  };
-
+  }, [filterType, date, dateRange, toast]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -177,6 +150,18 @@ export default function TransactionsPage() {
     });
     return () => unsubscribe();
   }, [auth]);
+
+  useEffect(() => {
+    if (user) {
+        fetchTransactions(user.uid);
+    }
+  }, [user, fetchTransactions]);
+
+  useEffect(() => {
+    if (watchedCategory !== 'Préstamo') {
+      form.setValue('loanDetails', undefined);
+    }
+  }, [watchedCategory, form]);
 
 
   async function onSubmit(data: FormValues) {
@@ -231,7 +216,8 @@ export default function TransactionsPage() {
         await batch.commit();
       }
       
-      await fetchTransactions(user.uid);
+      const newTransaction = { ...transactionData, id: docRef.id, date: (transactionData.date as Timestamp).toDate() };
+      setTransactions(prev => [newTransaction, ...prev].sort((a,b) => b.date.getTime() - a.date.getTime()));
 
       toast({
         title: "Transacción Añadida",
@@ -319,7 +305,6 @@ export default function TransactionsPage() {
                           onValueChange={field.onChange}
                           value={field.value}
                           className="flex space-x-4"
-                          disabled={!!watchedCategory}
                         >
                           <FormItem className="flex items-center space-x-2 space-y-0">
                             <FormControl>
