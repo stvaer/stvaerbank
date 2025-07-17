@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
 import { collection, getDocs, Timestamp, query, where } from "firebase/firestore";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { db, auth } from "@/lib/firebase";
+import { onAuthStateChanged, User, Auth } from "firebase/auth";
+import { db, auth as firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { Transaction } from "@/lib/schemas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { subMonths, format, startOfMonth, endOfMonth } from 'date-fns';
@@ -17,8 +17,16 @@ export default function DashboardPage() {
   const [chartData, setChartData] = useState<Array<{ month: string; balance: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [auth, setAuth] = useState<Auth | null>(null);
 
   useEffect(() => {
+    initializeFirebase();
+    setAuth(firebaseAuth);
+  }, []);
+
+  useEffect(() => {
+    if (!auth) return;
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         if(currentUser) {
             setUser(currentUser);
@@ -30,9 +38,10 @@ export default function DashboardPage() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [auth]);
 
   const fetchData = async (uid: string) => {
+      if (!db) return;
       setLoading(true);
       try {
         const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", uid));
@@ -176,3 +185,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

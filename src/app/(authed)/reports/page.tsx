@@ -7,10 +7,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer
 import { ArrowUpRight, ArrowDownLeft, Milestone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { collection, query, where, getDocs, Timestamp } from "firebase/firestore"
-import { onAuthStateChanged, User } from "firebase/auth"
-import { db, auth } from "@/lib/firebase"
+import { onAuthStateChanged, User, Auth } from "firebase/auth"
+import { db, auth as firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { Transaction } from "@/lib/schemas"
-import { subMonths, startOfMonth, endOfMonth, format } from 'date-fns'
+import { subMonths, format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -30,8 +30,15 @@ export default function ReportsPage() {
   });
 
   const [user, setUser] = useState<User | null>(null);
+  const [auth, setAuth] = useState<Auth | null>(null);
 
   useEffect(() => {
+    initializeFirebase();
+    setAuth(firebaseAuth);
+  }, []);
+
+  useEffect(() => {
+    if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
         if (currentUser) {
             setUser(currentUser);
@@ -42,9 +49,10 @@ export default function ReportsPage() {
         }
     });
     return () => unsubscribe();
-  }, []);
+  }, [auth]);
 
   const fetchReportData = async (uid: string) => {
+      if (!db) return;
       setLoading(true);
       try {
         const sixMonthsAgo = subMonths(new Date(), 6);
@@ -192,3 +200,5 @@ export default function ReportsPage() {
     </div>
   )
 }
+
+    

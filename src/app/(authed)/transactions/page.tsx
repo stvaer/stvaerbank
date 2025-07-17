@@ -7,12 +7,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, addDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp, Search } from "lucide-react";
 import { collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc, limit } from "firebase/firestore";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged, User, Auth } from "firebase/auth";
 import { DateRange } from "react-day-picker";
 
 import { transactionSchema, type Transaction, type LoanDetails } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
-import { db, auth } from "@/lib/firebase";
+import { db, auth as firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +50,7 @@ export default function TransactionsPage() {
 
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
+  const [auth, setAuth] = useState<Auth | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(transactionSchema),
@@ -75,6 +76,7 @@ export default function TransactionsPage() {
 
   
   const fetchTransactions = useCallback(async (uid: string) => {
+    if (!db) return;
     setLoading(true);
     try {
         let q;
@@ -138,6 +140,13 @@ export default function TransactionsPage() {
   }, [filterType, date, dateRange, toast]);
 
   useEffect(() => {
+    initializeFirebase();
+    setAuth(firebaseAuth);
+  }, []);
+
+  useEffect(() => {
+    if (!auth) return;
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
@@ -148,7 +157,7 @@ export default function TransactionsPage() {
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [auth]);
 
   useEffect(() => {
     if (user) {
@@ -164,7 +173,7 @@ export default function TransactionsPage() {
 
 
   async function onSubmit(data: FormValues) {
-    if (!user) {
+    if (!user || !db) {
       toast({
         title: "Error",
         description: "Debes iniciar sesión para añadir una transacción.",
@@ -176,7 +185,7 @@ export default function TransactionsPage() {
     const transactionData: Omit<Transaction, 'id'> = {
       description: data.description,
       amount: data.amount,
-      type: data.type, // Use the selected type directly
+      type: data.type,
       category: data.category,
       userId: user.uid,
       date: data.date,
@@ -219,7 +228,6 @@ export default function TransactionsPage() {
         await batch.commit();
       }
       
-      // Manually update the state instead of re-fetching
       const newTransaction = { ...transactionData, id: docRef.id, date: transactionData.date };
       setTransactions(prev => [newTransaction, ...prev].sort((a,b) => b.date.getTime() - a.date.getTime()));
 
@@ -334,7 +342,12 @@ export default function TransactionsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Categoría</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={(value) => {
+                          field.onChange(value);
+                          if (value !== 'Préstamo') {
+                            form.setValue('loanDetails', undefined, { shouldValidate: true });
+                          }
+                      }} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecciona una categoría" />
@@ -640,3 +653,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    

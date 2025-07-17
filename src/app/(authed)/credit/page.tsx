@@ -5,11 +5,11 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy, deleteDoc } from "firebase/firestore";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged, User, Auth } from "firebase/auth";
 import { PlusCircle, MoreVertical, SquarePlus, FileText, Search, Calendar as CalendarIcon, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
-import { db, auth } from "@/lib/firebase";
+import { db, auth as firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { creditCardSchema, statementSchema, type CreditCard, type Statement, paymentSchema, type Payment } from "@/lib/schemas";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +73,7 @@ export default function CreditPage() {
   const [editingStatement, setEditingStatement] = useState<StatementWithId | null>(null);
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
+  const [auth, setAuth] = useState<Auth | null>(null);
 
   const cardForm = useForm<CreditCard>({
     resolver: zodResolver(creditCardSchema),
@@ -102,6 +103,14 @@ export default function CreditPage() {
   });
 
     useEffect(() => {
+        initializeFirebase();
+        setAuth(firebaseAuth);
+    }, []);
+
+
+    useEffect(() => {
+        if (!auth) return;
+
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
@@ -114,9 +123,10 @@ export default function CreditPage() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [auth]);
 
   const fetchCreditCards = async (uid: string) => {
+    if (!db) return;
     setLoading(true);
     try {
       const q = query(collection(db, "credit_cards"), where("userId", "==", uid));
@@ -140,7 +150,7 @@ export default function CreditPage() {
 
 
   async function onCardSubmit(data: CreditCard) {
-    if (!user) {
+    if (!user || !db) {
       toast({
         title: "Error",
         description: "Debes iniciar sesión para añadir una tarjeta.",
@@ -170,7 +180,7 @@ export default function CreditPage() {
   }
 
   async function onPaymentSubmit(data: Payment) {
-    if (!user || !selectedCard) return;
+    if (!user || !selectedCard || !db) return;
 
     const paymentAmount = data.amount;
     const newDebt = selectedCard.currentDebt - paymentAmount;
@@ -207,7 +217,7 @@ export default function CreditPage() {
   }
 
   async function onStatementSubmit(data: Statement) {
-      if (!user || !selectedCard) return;
+      if (!user || !selectedCard || !db) return;
       try {
         await addDoc(collection(db, "statements"), {
             ...data,
@@ -229,7 +239,7 @@ export default function CreditPage() {
   }
 
   async function onStatementUpdate(data: Statement) {
-      if (!editingStatement) return;
+      if (!editingStatement || !db) return;
       try {
           const statementRef = doc(db, "statements", editingStatement.id);
           await updateDoc(statementRef, {
@@ -254,7 +264,7 @@ export default function CreditPage() {
   }
 
   async function onViewStatements(card: CreditCardWithId) {
-    if (!user) return;
+    if (!user || !db) return;
     setSelectedCard(card);
     try {
         const q = query(
@@ -291,21 +301,19 @@ export default function CreditPage() {
   }
 
   async function handleDeleteCard(cardId: string) {
-    if (!user) return;
+    if (!user || !db) return;
     if (!confirm("¿Estás seguro de que quieres eliminar esta tarjeta y todos sus estados de cuenta asociados? Esta acción no se puede deshacer.")) {
         return;
     }
 
     try {
-        // Here you could also delete associated statements if you wish
-        // For now, we just delete the card
         await deleteDoc(doc(db, "credit_cards", cardId));
         toast({
             title: "Tarjeta Eliminada",
             description: "La tarjeta de crédito ha sido eliminada.",
             variant: "destructive"
         });
-        await fetchCreditCards(user.uid); // Refresh list
+        await fetchCreditCards(user.uid);
     } catch (error) {
         console.error("Error al eliminar la tarjeta: ", error);
         toast({ title: "Error", description: "No se pudo eliminar la tarjeta.", variant: "destructive" });
@@ -799,3 +807,5 @@ export default function CreditPage() {
     </>
   );
 }
+
+    

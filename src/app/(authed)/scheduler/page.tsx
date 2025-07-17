@@ -7,11 +7,11 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon, PlusCircle, Trash2, Banknote } from "lucide-react"
 import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp, where } from "firebase/firestore";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged, User, Auth } from "firebase/auth";
 
 import { billSchema, type Bill } from "@/lib/schemas"
 import { cn } from "@/lib/utils"
-import { db, auth } from "@/lib/firebase";
+import { db, auth as firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -32,6 +32,7 @@ export default function SchedulerPage() {
   const [billDates, setBillDates] = useState<Date[]>([]);
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
+  const [auth, setAuth] = useState<Auth | null>(null);
 
   const form = useForm<Bill>({
     resolver: zodResolver(billSchema),
@@ -43,6 +44,13 @@ export default function SchedulerPage() {
   });
 
   useEffect(() => {
+    initializeFirebase();
+    setAuth(firebaseAuth);
+  }, []);
+
+  useEffect(() => {
+    if (!auth) return;
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
         if (currentUser) {
             setUser(currentUser);
@@ -54,9 +62,10 @@ export default function SchedulerPage() {
         }
     });
     return () => unsubscribe();
-  }, []);
+  }, [auth]);
 
   const fetchBills = async (uid: string) => {
+        if (!db) return;
         setLoading(true);
         try {
             const q = query(
@@ -89,7 +98,7 @@ export default function SchedulerPage() {
 
 
   async function onSubmit(data: Bill) {
-    if (!user) {
+    if (!user || !db) {
       toast({
         title: "Error",
         description: "Debes iniciar sesión para añadir una factura.",
@@ -123,6 +132,7 @@ export default function SchedulerPage() {
   }
   
   async function removeBill(id: string) {
+    if (!db) return;
     const billToRemove = bills.find(b => b.id === id);
     if (!billToRemove) return;
 
@@ -321,3 +331,5 @@ export default function SchedulerPage() {
     </div>
   )
 }
+
+    

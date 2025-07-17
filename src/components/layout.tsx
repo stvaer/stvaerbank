@@ -5,11 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { AreaChart, ArrowRightLeft, CalendarClock, CreditCard, LayoutDashboard, LogOut, Plus, Bell, CircleDollarSign } from "lucide-react";
-import { onAuthStateChanged, User, signOut } from "firebase/auth";
+import { onAuthStateChanged, User, signOut, Auth } from "firebase/auth";
 import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
-import { addDays, isAfter, isBefore, startOfToday } from "date-fns";
+import { addDays, isBefore, startOfToday } from "date-fns";
 
-import { auth, db } from "@/lib/firebase";
+import { db, auth as firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 
 import {
@@ -52,8 +52,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
+  const [auth, setAuth] = useState<Auth | null>(null);
 
   useEffect(() => {
+    initializeFirebase();
+    setAuth(firebaseAuth);
+  }, []);
+
+  useEffect(() => {
+    if (!auth) return;
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
@@ -64,9 +72,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, [router, auth]);
   
   const fetchNotifications = async (uid: string) => {
+    if (!db) return;
     setLoadingNotifications(true);
     const today = startOfToday();
     const sevenDaysFromNow = addDays(today, 7);
@@ -115,6 +124,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   const handleSignOut = async () => {
+    if (!auth) return;
     try {
       await signOut(auth);
       router.push("/login");
@@ -227,3 +237,5 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    
