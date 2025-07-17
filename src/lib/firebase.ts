@@ -1,6 +1,6 @@
 
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getFirestore, collection, getDocs, query, where, Timestamp, orderBy, deleteDoc, addDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, Timestamp, orderBy, deleteDoc, addDoc, updateDoc, writeBatch, limit } from 'firebase/firestore';
 import { getAuth, signOut } from "firebase/auth";
 import { firebaseConfig } from "./firebase-config";
 
@@ -26,6 +26,7 @@ const firebaseUtils = {
   updateDoc,
   writeBatch,
   signOut,
+  limit,
 };
 
 export { app, db, firebaseAuth, firebaseUtils };
