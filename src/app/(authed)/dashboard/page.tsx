@@ -40,8 +40,8 @@ export default function DashboardPage() {
 
         const creditCardsData = creditCardsSnapshot.docs.map((doc: any) => doc.data());
         
-        const totalIncome = transactionsData.filter((t: Transaction) => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
-        const totalExpense = transactionsData.filter((t: Transaction) => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
+        const totalIncome = transactionsData.filter((t: Transaction) => t.type === 'income').reduce((acc: number, t: Transaction) => acc + t.amount, 0);
+        const totalExpense = transactionsData.filter((t: Transaction) => t.type === 'expense').reduce((acc: number, t: Transaction) => acc + t.amount, 0);
         const totalBalance = totalIncome - totalExpense;
         const checkingAccount = totalBalance * 0.4;
         const savingsAccount = totalBalance * 0.6;
@@ -66,11 +66,11 @@ export default function DashboardPage() {
 
             const monthIncome = transactionsData
                 .filter((t: Transaction) => t.type === 'income' && t.date >= start && t.date <= end)
-                .reduce((acc, t) => acc + t.amount, 0);
+                .reduce((acc: number, t: Transaction) => acc + t.amount, 0);
 
             const monthExpense = transactionsData
                 .filter((t: Transaction) => t.type === 'expense' && t.date >= start && t.date <= end)
-                .reduce((acc, t) => acc + t.amount, 0);
+                .reduce((acc: number, t: Transaction) => acc + t.amount, 0);
             
             monthlyData.unshift({ month: monthName, balance: currentBalance });
             
