@@ -206,34 +206,34 @@ export default function TransactionsPage() {
         const installmentAmount = totalAmount / installments;
         const batch = writeBatch(db);
 
-        let currentDueDate = startDate;
+        let currentDueDate: Date | undefined = startDate;
 
         for (let i = 0; i < installments; i++) {
           let dueDate: Date;
-          if (i === 0) {
-            dueDate = currentDueDate;
-          } else {
-            if (frequency === 'monthly') {
-                currentDueDate = addMonths(currentDueDate, 1);
-            } else { // bi-weekly
-                const lastPaymentDay = currentDueDate.getDate();
-                if (lastPaymentDay <= 15) {
-                    currentDueDate = setDate(currentDueDate, 15);
-                    if (currentDueDate < addDays(startDate, i * 14)) { // Ensure we move forward
-                        currentDueDate = lastDayOfMonth(currentDueDate);
-                    }
-                } else {
-                    currentDueDate = lastDayOfMonth(currentDueDate);
-                }
 
-                if (currentDueDate <= addDays(startDate, i * 14)) {
-                   currentDueDate = addMonths(currentDueDate,1);
-                   currentDueDate = setDate(currentDueDate, 15);
-                }
-            }
-            dueDate = currentDueDate;
+          if (i === 0) {
+              dueDate = currentDueDate;
+          } else {
+              if (frequency === 'monthly') {
+                  currentDueDate = addMonths(currentDueDate, 1);
+              } else { // bi-weekly logic
+                  const lastPaymentDay = currentDueDate.getDate();
+                  if (lastPaymentDay <= 15) {
+                      currentDueDate = setDate(currentDueDate, 15);
+                      if (currentDueDate < addDays(startDate, i * 14)) { // Ensure we move forward in time
+                          currentDueDate = lastDayOfMonth(currentDueDate);
+                      }
+                  } else {
+                      currentDueDate = lastDayOfMonth(currentDueDate);
+                  }
+
+                  if (currentDueDate <= addDays(startDate, i * 14)) {
+                     currentDueDate = addMonths(currentDueDate,1);
+                     currentDueDate = setDate(currentDueDate, 15);
+                  }
+              }
+              dueDate = currentDueDate;
           }
-          
 
           const billData = {
             name: `Cuota ${i + 1}/${installments} - Préstamo ${loanId}`,
@@ -244,25 +244,13 @@ export default function TransactionsPage() {
           const billRef = doc(collection(db, "bills"));
           batch.set(billRef, billData);
 
-           if (i > 0) {
-              if (frequency === 'monthly') {
-                // already handled by loop
+          // Update currentDueDate for the next iteration if it's bi-weekly
+           if (i < installments - 1 && frequency === 'bi-weekly') {
+              const lastPaymentDay = dueDate.getDate();
+              if (lastPaymentDay <= 15) {
+                  currentDueDate = lastDayOfMonth(dueDate);
               } else {
-                 const lastPaymentDay = currentDueDate.getDate();
-                 if (lastPaymentDay <= 15) {
-                    currentDueDate = lastDayOfMonth(currentDueDate);
-                 } else {
-                    currentDueDate = setDate(addMonths(currentDueDate, 1), 15);
-                 }
-              }
-           } else {
-              if (frequency === 'bi-weekly') {
-                  const lastPaymentDay = currentDueDate.getDate();
-                  if (lastPaymentDay <= 15) {
-                      currentDueDate = lastDayOfMonth(currentDueDate);
-                  } else {
-                      currentDueDate = setDate(addMonths(currentDueDate, 1), 15);
-                  }
+                  currentDueDate = setDate(addMonths(dueDate, 1), 15);
               }
            }
         }
@@ -985,5 +973,6 @@ export default function TransactionsPage() {
     </>
   );
 }
+
 
 
