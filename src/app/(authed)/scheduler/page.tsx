@@ -158,7 +158,7 @@ export default function SchedulerPage() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 animate-fade-in">
-      <div className="lg:w-2/5 space-y-6 flex-shrink-0">
+      <div className="lg:w-2/5 flex-shrink-0">
         <Card>
           <CardHeader>
             <CardTitle>Programar una Factura</CardTitle>
@@ -242,7 +242,7 @@ export default function SchedulerPage() {
         </Card>
       </div>
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1">
         <Card>
           <CardHeader>
             <CardTitle>Calendario de Pagos</CardTitle>

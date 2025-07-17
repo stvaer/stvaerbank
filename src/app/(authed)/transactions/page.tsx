@@ -189,7 +189,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 animate-fade-in">
-      <div className="lg:w-1/3 space-y-6 flex-shrink-0">
+      <div className="lg:w-1/3 flex-shrink-0">
         <Card>
           <CardHeader>
             <CardTitle>Nueva Transacción</CardTitle>
@@ -442,7 +442,7 @@ export default function TransactionsPage() {
         </Card>
       </div>
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1">
         <Card>
           <CardHeader>
             <CardTitle>Transacciones Recientes</CardTitle>
