@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
@@ -79,18 +80,18 @@ export default function LoginPage() {
   const handleLogin = async (currentPin?: string) => {
     setError(false);
     setErrorMessage("");
-
-    if (!email) {
-      setError(true);
-      setErrorMessage("Por favor, introduce tu correo.");
-      return;
-    }
     
     const password = currentPin || pin.join("");
-    if (password.length < 6) {
-      setError(true);
-      setErrorMessage("El PIN debe tener 6 dígitos.");
-      return;
+    if (!email || password.length < 6) {
+        if (!email) {
+            setErrorMessage("Por favor, introduce tu correo.");
+        } else {
+            setErrorMessage("El PIN debe tener 6 dígitos.");
+        }
+        setError(true);
+        modalContentRef.current?.classList.add("shake");
+        setTimeout(() => modalContentRef.current?.classList.remove("shake"), 800);
+        return;
     }
 
     try {
@@ -135,11 +136,11 @@ export default function LoginPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10 transition-opacity duration-300">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10 transition-opacity duration-300 p-4">
           <div
             ref={modalContentRef}
             className={cn(
-              "terminal-window w-96 relative p-8 transition-all duration-400 transform opacity-0 translate-y-5",
+              "terminal-window w-full max-w-sm relative p-6 sm:p-8 transition-all duration-400 transform opacity-0 translate-y-5",
               isModalOpen && "opacity-100 translate-y-0"
             )}
           >
@@ -154,7 +155,7 @@ export default function LoginPage() {
                  />
               </div>
 
-              <div className="mb-6 flex w-full justify-between gap-2">
+              <div className="mb-6 flex w-full justify-between gap-1 sm:gap-2">
                 {pin.map((digit, index) => (
                   <input
                     key={index}
@@ -162,7 +163,7 @@ export default function LoginPage() {
                     type="password"
                     maxLength={1}
                     className={cn(
-                      "digit-input",
+                      "digit-input w-10 h-12 sm:w-12 sm:h-14 text-lg sm:text-xl",
                       digit && "filled",
                       error && "bg-red-500/20 !text-red-500 border-red-500"
                     )}
@@ -174,7 +175,7 @@ export default function LoginPage() {
                 ))}
               </div>
               
-              {errorMessage && <p className="text-red-500 text-xs mb-4">{errorMessage}</p>}
+              {errorMessage && <p className="text-red-500 text-xs mb-4 text-center">{errorMessage}</p>}
 
               <div className="flex space-x-4 w-full">
                 <button

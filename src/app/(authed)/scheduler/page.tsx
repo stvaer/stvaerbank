@@ -156,8 +156,8 @@ export default function SchedulerPage() {
   const BillIcon = () => <Banknote className="h-3 w-3 text-white absolute bottom-1 right-1" />;
 
   return (
-    <div className="grid md:grid-cols-3 gap-6 animate-fade-in">
-      <div className="md:col-span-1 space-y-6">
+    <div className="grid lg:grid-cols-5 gap-6 animate-fade-in">
+      <div className="lg:col-span-2 space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Programar una Factura</CardTitle>
@@ -239,8 +239,16 @@ export default function SchedulerPage() {
             </Form>
           </CardContent>
         </Card>
-        <Card className="hidden md:block">
-            <CardContent className="p-0">
+      </div>
+
+      <div className="lg:col-span-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Calendario de Pagos</CardTitle>
+             <CardDescription>Una vista general de tus próximas facturas.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col md:flex-row gap-6">
+            <div className="flex-1">
                  <Calendar
                     mode="single"
                     modifiers={modifiers}
@@ -256,54 +264,47 @@ export default function SchedulerPage() {
                             );
                         }
                     }}
-                    className="p-3"
+                    className="p-3 w-full"
                  />
-            </CardContent>
-        </Card>
-      </div>
-
-      <div className="md:col-span-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Facturas Próximas</CardTitle>
-             <CardDescription>Una lista de tus recordatorios de pago programados.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Factura</TableHead>
-                  <TableHead>Fecha Vencimiento</TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
-                  <TableHead className="text-right">Acción</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell><Skeleton className="h-5 w-28" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                      <TableCell className="text-right"><Skeleton className="h-5 w-16" /></TableCell>
-                      <TableCell className="text-right"><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  bills.map((bill) => (
-                    <TableRow key={bill.id}>
-                      <TableCell className="font-medium">{bill.name}</TableCell>
-                      <TableCell>{format(bill.dueDate, "PPP")}</TableCell>
-                      <TableCell className="text-right">${bill.amount.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">
-                       <Button variant="ghost" size="icon" onClick={() => removeBill(bill.id)}>
-                         <Trash2 className="h-4 w-4 text-destructive" />
-                       </Button>
-                    </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            </div>
+            <div className="flex-1 md:border-l md:pl-6">
+              <h3 className="text-lg font-medium mb-4">Facturas Próximas</h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Factura</TableHead>
+                    <TableHead>Vence</TableHead>
+                    <TableHead className="text-right">Monto</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                        <TableCell className="text-right"><Skeleton className="h-5 w-12" /></TableCell>
+                        <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    bills.map((bill) => (
+                      <TableRow key={bill.id}>
+                        <TableCell className="font-medium truncate max-w-28">{bill.name}</TableCell>
+                        <TableCell>{format(bill.dueDate, "PPP")}</TableCell>
+                        <TableCell className="text-right">${bill.amount.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">
+                         <Button variant="ghost" size="icon" onClick={() => removeBill(bill.id)}>
+                           <Trash2 className="h-4 w-4 text-destructive" />
+                         </Button>
+                      </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
