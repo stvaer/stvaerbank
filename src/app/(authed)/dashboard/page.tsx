@@ -3,8 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { ResponsiveContainer, Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { ResponsiveContainer, Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
 import { collection, getDocs, Timestamp, query, where } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
@@ -12,13 +11,6 @@ import { db, app } from "@/lib/firebase";
 import { Transaction } from "@/lib/schemas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { subMonths, format, startOfMonth, endOfMonth } from 'date-fns';
-
-const chartConfig = {
-  balance: {
-    label: "Balance",
-    color: "hsl(var(--primary))",
-  },
-};
 
 export default function DashboardPage() {
   const [balances, setBalances] = useState<Array<{ name: string; value: number; icon: React.ElementType; color: string }>>([]);
@@ -162,9 +154,12 @@ export default function DashboardPage() {
                     stroke="hsl(var(--muted-foreground))"
                     domain={['dataMin - 1000', 'dataMax + 1000']}
                   />
-                  <ChartTooltip
+                  <Tooltip
                     cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 2, strokeDasharray: '3 3' }}
-                    content={<ChartTooltipContent indicator="line" />}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--background))',
+                      borderColor: 'hsl(var(--border))',
+                    }}
                   />
                   <Line dataKey="balance" type="monotone" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))', r: 4 }} />
                 </LineChart>

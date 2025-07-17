@@ -3,12 +3,7 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import {
-  ChartConfig,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from "recharts"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, Tooltip } from "recharts"
 import { ArrowUpRight, ArrowDownLeft, Milestone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { collection, query, where, getDocs, Timestamp } from "firebase/firestore"
@@ -18,17 +13,6 @@ import { Transaction } from "@/lib/schemas"
 import { subMonths, startOfMonth, endOfMonth, format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Skeleton } from "@/components/ui/skeleton"
-
-const chartConfig: ChartConfig = {
-  income: {
-    label: "Ingresos",
-    color: "hsl(var(--primary))",
-  },
-  expenses: {
-    label: "Gastos",
-    color: "hsl(var(--muted-foreground))",
-  },
-}
 
 interface MonthlyData {
   month: string;
@@ -181,16 +165,20 @@ export default function ReportsPage() {
           ) : (
             <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} style={{
-                    ...chartConfig
-                }}>
+                <BarChart data={chartData}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
                   <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
-                  <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                  <Tooltip
+                    cursor={{ fill: 'hsl(var(--accent))' }}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--background))',
+                      borderColor: 'hsl(var(--border))',
+                    }}
+                  />
                   <Legend />
-                  <Bar dataKey="income" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expenses" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="income" name="Ingresos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="expenses" name="Gastos" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
