@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { PlusCircle, MoreVertical, SquarePlus, FileText, Search, Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 
@@ -71,7 +71,7 @@ export default function CreditPage() {
   const [isViewStatementsModalOpen, setViewStatementsModalOpen] = useState(false);
   const { toast } = useToast();
   const auth = getAuth(app);
-  const user = auth.currentUser;
+  const [user, setUser] = useState(auth.currentUser);
 
   const cardForm = useForm<CreditCard>({
     resolver: zodResolver(creditCardSchema),
@@ -100,13 +100,25 @@ export default function CreditPage() {
     }
   });
 
-  const fetchCreditCards = async () => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            if (currentUser) {
+                setUser(currentUser);
+                await fetchCreditCards(currentUser.uid);
+            } else {
+                setUser(null);
+                setCards([]);
+                setLoading(false);
+            }
+        });
+
+        return () => unsubscribe();
+    }, [auth]);
+
+  const fetchCreditCards = async (uid: string) => {
+    setLoading(true);
     try {
-      const q = query(collection(db, "credit_cards"), where("userId", "==", user.uid));
+      const q = query(collection(db, "credit_cards"), where("userId", "==", uid));
       const querySnapshot = await getDocs(q);
       const cardsData = querySnapshot.docs.map((doc) => ({
         id: doc.id,
@@ -125,9 +137,6 @@ export default function CreditPage() {
     }
   };
 
-  useEffect(() => {
-    fetchCreditCards();
-  }, [user]);
 
   async function onCardSubmit(data: CreditCard) {
     if (!user) {
@@ -187,7 +196,7 @@ export default function CreditPage() {
             title: "Pago Registrado",
             description: `Se registró un pago de ${formatCurrency(paymentAmount)} a la tarjeta ${selectedCard.cardName}.`
         });
-        fetchCreditCards();
+        await fetchCreditCards(user.uid);
         setPaymentModalOpen(false);
         paymentForm.reset();
     } catch (error) {
