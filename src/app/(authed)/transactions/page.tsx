@@ -71,7 +71,7 @@ export default function TransactionsPage() {
       loanDetails: {
         loanId: '',
         installments: 1,
-        installmentAmounts: [],
+        installmentAmounts: Array(24).fill(0),
         frequency: 'monthly',
         startDate: new Date(),
       },
@@ -263,6 +263,7 @@ export default function TransactionsPage() {
     if (data.category === 'Préstamo' && data.loanDetails) {
         transactionData.loanDetails = {
             ...data.loanDetails,
+            installmentAmounts: data.loanDetails.installmentAmounts.slice(0, data.loanDetails.installments),
             startDate: Timestamp.fromDate(data.loanDetails.startDate)
         } as any;
     }
@@ -294,6 +295,9 @@ export default function TransactionsPage() {
                        dueDate = setDate(currentDueDate, 15);
                        if(dueDate <= currentDueDate) {
                            dueDate = setDate(currentDueDate, lastDayOfMonth(currentDueDate).getDate());
+                           if(dueDate <= currentDueDate){
+                                dueDate = setDate(addMonths(currentDueDate, 1), 15);
+                           }
                        }
                    } else {
                        dueDate = setDate(addMonths(currentDueDate, 1), 15);
@@ -339,7 +343,7 @@ export default function TransactionsPage() {
         loanDetails: {
             loanId: '',
             installments: 1,
-            installmentAmounts: [],
+            installmentAmounts: Array(24).fill(0),
             frequency: 'monthly',
             startDate: new Date(),
         },
@@ -412,17 +416,27 @@ export default function TransactionsPage() {
     const startDate = transaction.loanDetails?.startDate;
     const isDate = startDate instanceof Date && !isNaN(startDate.valueOf());
     
+    // Ensure installmentAmounts is an array of the correct length with defined values
+    const installmentAmounts = Array(24).fill(0);
+    if (transaction.loanDetails?.installmentAmounts) {
+        transaction.loanDetails.installmentAmounts.forEach((amount, index) => {
+            if (index < installmentAmounts.length) {
+                installmentAmounts[index] = amount;
+            }
+        });
+    }
+    
     form.reset({
       ...transaction,
       date: transaction.date,
       loanDetails: transaction.loanDetails ? {
           ...transaction.loanDetails,
           startDate: isDate ? startDate : new Date(),
-          installmentAmounts: transaction.loanDetails.installmentAmounts || []
+          installmentAmounts: installmentAmounts
       } : {
         loanId: '',
         installments: 1,
-        installmentAmounts: [],
+        installmentAmounts: Array(24).fill(0),
         frequency: 'monthly',
         startDate: new Date(),
       }
@@ -1092,5 +1106,3 @@ export default function TransactionsPage() {
     </>
   );
 }
-
-    
