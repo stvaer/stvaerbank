@@ -440,7 +440,7 @@ export default function CreditPage() {
                 </Card>
               ))
             ) : cards.length > 0 ? (
-              cards.map((card) => {
+              cards.map((card: CreditCardWithId) => {
                 const usagePercentage = (card.currentDebt / card.creditLimit) * 100;
                 return (
                   <Card key={card.id}>
@@ -660,7 +660,7 @@ export default function CreditPage() {
             </DialogHeader>
             <div className="max-h-[60vh] overflow-y-auto pr-4">
                 {statements.length > 0 ? (
-                    statements.map((statement, index) => (
+                    statements.map((statement: StatementWithId, index: number) => (
                         <div key={statement.id}>
                             <div className="p-4 rounded-lg space-y-3 relative group">
                                 <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleEditStatement(statement)}>

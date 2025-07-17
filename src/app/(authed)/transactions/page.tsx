@@ -580,7 +580,7 @@ export default function TransactionsPage() {
                     </div>
                   ))
                 ) : transactions.length > 0 ? (
-                  transactions.map((tx, index) => {
+                  transactions.map((tx: Transaction & { id: string }, index: number) => {
                     const finalAmount = tx.hasAdvance && tx.advanceAmount ? tx.amount - tx.advanceAmount : tx.amount;
                     return (
                        <div key={tx.id}>
@@ -637,3 +637,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    

@@ -63,7 +63,7 @@ export default function SchedulerPage() {
                 } as BillWithId;
             });
             setBills(billsData);
-            setBillDates(billsData.map(bill => bill.dueDate));
+            setBillDates(billsData.map((bill: BillWithId) => bill.dueDate));
         } catch (error) {
             console.error("Error al obtener facturas: ", error);
             toast({
@@ -106,7 +106,7 @@ export default function SchedulerPage() {
         const newBill: BillWithId = { ...data, id: docRef.id };
         const updatedBills = [...bills, newBill].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
         setBills(updatedBills);
-        setBillDates(updatedBills.map(bill => bill.dueDate));
+        setBillDates(updatedBills.map((bill: BillWithId) => bill.dueDate));
         toast({
             title: "Factura Programada",
             description: `${data.name} por $${data.amount} ha sido añadida.`,
@@ -133,7 +133,7 @@ export default function SchedulerPage() {
         await deleteDoc(doc(db, "bills", id));
         const updatedBills = bills.filter((bill) => bill.id !== id);
         setBills(updatedBills);
-        setBillDates(updatedBills.map(bill => bill.dueDate));
+        setBillDates(updatedBills.map((bill: BillWithId) => bill.dueDate));
         toast({
             title: "Factura Eliminada",
             description: `${billToRemove.name} ha sido eliminada del calendario.`,
@@ -289,7 +289,7 @@ export default function SchedulerPage() {
                         </div>
                       ))
                     ) : bills.length > 0 ? (
-                      bills.map((bill, index) => (
+                      bills.map((bill: BillWithId, index: number) => (
                         <div key={bill.id}>
                           <div className="p-4 rounded-lg relative">
                             <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => removeBill(bill.id)}>
@@ -324,3 +324,5 @@ export default function SchedulerPage() {
     </div>
   )
 }
+
+    
