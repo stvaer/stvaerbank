@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, addDays } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp } from "lucide-react";
@@ -69,6 +69,8 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (watchedCategory === 'Salario' || watchedCategory === 'Préstamo') {
       form.setValue('type', 'income');
+    } else {
+        form.setValue('type', 'expense');
     }
   }, [watchedCategory, form]);
   
