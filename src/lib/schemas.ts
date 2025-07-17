@@ -72,13 +72,19 @@ export const creditCardSchema = z.object({
 export type CreditCard = z.infer<typeof creditCardSchema>;
 
 export const statementSchema = z.object({
-  cardId: z.string(),
+  cardId: z.string().optional(),
   month: z.string().regex(/^\d{4}-\d{2}$/, "El formato del mes debe ser YYYY-MM."),
   statementBalance: z.coerce.number().min(0, "El saldo del estado de cuenta no puede ser negativo."),
   minimumPayment: z.coerce.number().min(0, "El pago mínimo no puede ser negativo."),
   paymentForNoInterest: z.coerce.number().min(0, "El pago para no generar intereses no puede ser negativo."),
-  isPaid: z.boolean().default(false),
-  userId: z.string(),
+  isPaid: z.boolean().default(false).optional(),
+  userId: z.string().optional(),
 });
 
 export type Statement = z.infer<typeof statementSchema>;
+
+export const paymentSchema = z.object({
+    amount: z.coerce.number().positive("El monto del pago debe ser positivo."),
+});
+
+export type Payment = z.infer<typeof paymentSchema>;
