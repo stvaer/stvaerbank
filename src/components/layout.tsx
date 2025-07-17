@@ -7,8 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { AreaChart, ArrowRightLeft, CalendarClock, CreditCard, LayoutDashboard, LogOut, Plus, Bell, CircleDollarSign } from "lucide-react";
 import { addDays, isBefore, startOfToday } from "date-fns";
 import React, { useEffect, useState, useCallback } from "react";
-import type { User, Auth, Unsubscribe } from "firebase/auth";
-import type { Firestore, QuerySnapshot, DocumentData } from "firebase/firestore";
+import type { DocumentData } from "firebase/firestore";
 
 import {
   SidebarProvider,
@@ -27,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "./ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { useFirebase } from "@/hooks/use-firebase";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -45,16 +45,12 @@ interface Notification {
 
 interface AppLayoutProps {
     children: React.ReactNode;
-    user: User | null;
-    auth: Auth | null;
-    db: Firestore | null;
-    firebaseUtils: any;
-    firebaseReady: boolean;
 }
 
-export function AppLayout({ children, user, auth, db, firebaseUtils, firebaseReady }: AppLayoutProps) {
+export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, db, firebaseUtils, auth, firebaseReady } = useFirebase();
   const pageTitle = navItems.find(item => pathname.startsWith(item.href))?.label || "Dashboard";
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
@@ -234,5 +230,3 @@ export function AppLayout({ children, user, auth, db, firebaseUtils, firebaseRea
     </SidebarProvider>
   );
 }
-
-    

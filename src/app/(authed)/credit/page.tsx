@@ -4,8 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy, deleteDoc } from "firebase/firestore";
-import type { User, Auth } from "firebase/auth";
+import type { Timestamp } from "firebase/firestore";
 import { PlusCircle, MoreVertical, SquarePlus, FileText, Search, Calendar as CalendarIcon, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -49,6 +48,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { useFirebase } from "@/hooks/use-firebase";
 
 
 interface CreditCardWithId extends CreditCard {
@@ -60,13 +60,8 @@ interface StatementWithId extends Statement {
     dueDate: Date;
 }
 
-interface CreditPageProps {
-  user: User | null;
-  db: any;
-  firebaseUtils: any;
-}
-
-export default function CreditPage({ user, db, firebaseUtils }: CreditPageProps) {
+export default function CreditPage() {
+  const { user, db, firebaseUtils } = useFirebase();
   const [cards, setCards] = useState<CreditCardWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCard, setSelectedCard] = useState<CreditCardWithId | null>(null);

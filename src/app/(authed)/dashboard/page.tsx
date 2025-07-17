@@ -5,19 +5,14 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
-import type { collection, getDocs, Timestamp, query, where } from "firebase/firestore";
-import type { User } from "firebase/auth";
+import type { Timestamp } from "firebase/firestore";
 import { Transaction } from "@/lib/schemas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { subMonths, format, startOfMonth, endOfMonth } from 'date-fns';
+import { useFirebase } from "@/hooks/use-firebase";
 
-interface DashboardPageProps {
-  user: User | null;
-  db: any;
-  firebaseUtils: any;
-}
-
-export default function DashboardPage({ user, db, firebaseUtils }: DashboardPageProps) {
+export default function DashboardPage() {
+  const { user, db, firebaseUtils } = useFirebase();
   const [balances, setBalances] = useState<Array<{ name: string; value: number; icon: React.ElementType; color: string }>>([]);
   const [chartData, setChartData] = useState<Array<{ month: string; balance: number }>>([]);
   const [loading, setLoading] = useState(true);

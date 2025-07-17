@@ -6,12 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, Tooltip } from "recharts"
 import { ArrowUpRight, ArrowDownLeft, Milestone } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { collection, query, where, getDocs, Timestamp } from "firebase/firestore"
-import type { User } from "firebase/auth"
+import type { Timestamp } from "firebase/firestore"
 import { Transaction } from "@/lib/schemas"
 import { subMonths, format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Skeleton } from "@/components/ui/skeleton"
+import { useFirebase } from "@/hooks/use-firebase"
 
 interface MonthlyData {
   month: string;
@@ -19,13 +19,9 @@ interface MonthlyData {
   expenses: number;
 }
 
-interface ReportsPageProps {
-  user: User | null;
-  db: any;
-  firebaseUtils: any;
-}
 
-export default function ReportsPage({ user, db, firebaseUtils }: ReportsPageProps) {
+export default function ReportsPage() {
+  const { user, db, firebaseUtils } = useFirebase();
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState<MonthlyData[]>([]);
   const [summaryData, setSummaryData] = useState({

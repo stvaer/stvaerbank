@@ -6,8 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon, PlusCircle, Trash2, Banknote } from "lucide-react"
-import type { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp, where } from "firebase/firestore";
-import type { User } from "firebase/auth";
+import type { Timestamp } from "firebase/firestore";
 
 import { billSchema, type Bill } from "@/lib/schemas"
 import { cn } from "@/lib/utils"
@@ -19,19 +18,15 @@ import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useToast } from "@/hooks/use-toast"
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator"
+import { Separator } from "@/components/ui/separator";
+import { useFirebase } from "@/hooks/use-firebase";
 
 interface BillWithId extends Bill {
     id: string;
 }
 
-interface SchedulerPageProps {
-  user: User | null;
-  db: any;
-  firebaseUtils: any;
-}
-
-export default function SchedulerPage({ user, db, firebaseUtils }: SchedulerPageProps) {
+export default function SchedulerPage() {
+  const { user, db, firebaseUtils } = useFirebase();
   const [bills, setBills] = useState<BillWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const [billDates, setBillDates] = useState<Date[]>([]);

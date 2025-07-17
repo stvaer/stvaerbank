@@ -6,8 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, addDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp, Search } from "lucide-react";
-import type { collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc, limit } from "firebase/firestore";
-import type { User } from "firebase/auth";
+import type { Timestamp } from "firebase/firestore";
 import { DateRange } from "react-day-picker";
 
 import { transactionSchema, type Transaction, type LoanDetails } from "@/lib/schemas";
@@ -31,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { useFirebase } from "@/hooks/use-firebase";
 
 
 type FormValues = Transaction & {
@@ -39,14 +39,8 @@ type FormValues = Transaction & {
 
 type FilterType = "recent" | "today" | "month" | "date" | "range";
 
-interface TransactionsPageProps {
-  user: User | null;
-  db: any;
-  firebaseUtils: any;
-}
-
-
-export default function TransactionsPage({ user, db, firebaseUtils }: TransactionsPageProps) {
+export default function TransactionsPage() {
+  const { user, db, firebaseUtils } = useFirebase();
   const [transactions, setTransactions] = useState<(Transaction & {id: string})[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<FilterType>("recent");
