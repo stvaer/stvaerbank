@@ -117,7 +117,7 @@ export default function TransactionsPage() {
     } else {
         remove();
     }
-  }, [watchedInstallments, watchedCategory, fields.length, append, remove]);
+  }, [watchedInstallments, watchedCategory, append, remove]);
 
   const fetchActiveLoans = useCallback(async (uid: string) => {
     if (!db || !firebaseUtils) return;
