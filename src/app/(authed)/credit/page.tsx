@@ -651,14 +651,14 @@ export default function CreditPage() {
       
       {/* View Statements Modal */}
       <Dialog open={isViewStatementsModalOpen} onOpenChange={setViewStatementsModalOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
             <DialogHeader>
                 <DialogTitle>Estados de Cuenta de {selectedCard?.cardName}</DialogTitle>
                 <DialogDescription>
                     Historial de estados de cuenta registrados para esta tarjeta.
                 </DialogDescription>
             </DialogHeader>
-            <div className="max-h-[60vh] overflow-y-auto pr-4">
+            <div className="flex-grow overflow-y-auto pr-4 -mr-4">
                 {statements.length > 0 ? (
                     statements.map((statement: StatementWithId, index: number) => (
                         <div key={statement.id}>
