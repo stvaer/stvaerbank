@@ -75,10 +75,12 @@ export default function TransactionsPage() {
   const watchedHasAdvance = form.watch("hasAdvance");
 
   useEffect(() => {
-    if (watchedCategory === 'Salario' || watchedCategory === 'Préstamo') {
-      form.setValue('type', 'income');
-    } else if (form.getValues('type') === 'income' && watchedCategory && !['Salario', 'Préstamo'].includes(watchedCategory)) {
+    if (watchedCategory) {
+      if (watchedCategory === 'Salario' || watchedCategory === 'Préstamo') {
+        form.setValue('type', 'income');
+      } else {
         form.setValue('type', 'expense');
+      }
     }
   }, [watchedCategory, form]);
   
@@ -306,7 +308,7 @@ export default function TransactionsPage() {
                           onValueChange={field.onChange}
                           value={field.value}
                           className="flex space-x-4"
-                          disabled={watchedCategory === 'Salario' || watchedCategory === 'Préstamo'}
+                          disabled
                         >
                           <FormItem className="flex items-center space-x-2 space-y-0">
                             <FormControl>
