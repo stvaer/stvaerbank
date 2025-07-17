@@ -144,14 +144,14 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle>Resumen de Balance</CardTitle>
         </CardHeader>
-        <CardContent className="pl-2">
+        <CardContent>
           {loading ? (
              <div className="h-[300px] w-full flex items-center justify-center">
                 <Skeleton className="h-full w-full" />
              </div>
           ) : (
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <LineChart accessibilityLayer data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+            <ChartContainer config={chartConfig} className="h-[300px] w-full aspect-video">
+              <LineChart accessibilityLayer data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} stroke="hsl(var(--muted-foreground))" />
                 <YAxis
@@ -160,6 +160,7 @@ export default function DashboardPage() {
                   tickMargin={8}
                   tickFormatter={(value) => `$${value / 1000}k`}
                   stroke="hsl(var(--muted-foreground))"
+                  domain={['dataMin - 1000', 'dataMax + 1000']}
                 />
                 <ChartTooltip
                   cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 2, strokeDasharray: '3 3' }}
