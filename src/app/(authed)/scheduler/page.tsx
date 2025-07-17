@@ -268,8 +268,8 @@ export default function SchedulerPage() {
                     className="p-3 w-full max-w-sm"
                  />
             </div>
-            <div className="flex-1 xl:border-l xl:pl-6">
-              <h3 className="text-lg font-medium mb-4">Facturas Próximas</h3>
+            <div className="flex-1 xl:border-l xl:pl-6 space-y-4">
+              <h3 className="text-lg font-medium">Facturas Próximas</h3>
               <div className="relative overflow-x-auto">
                 <Table>
                   <TableHeader>
