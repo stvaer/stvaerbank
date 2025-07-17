@@ -26,19 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+
 
 type FormValues = Transaction & {
   loanDetails?: LoanDetails;
@@ -96,8 +89,9 @@ export default function TransactionsPage() {
           const data = doc.data();
           return {
             ...data,
+            id: doc.id,
             date: (data.date as Timestamp).toDate(),
-          } as Transaction;
+          } as Transaction & { id: string };
         });
         setTransactions(transactionsData);
       } catch (error) {
@@ -141,7 +135,7 @@ export default function TransactionsPage() {
     }
 
     try {
-      await addDoc(collection(db, "transactions"), transactionData);
+      const docRef = await addDoc(collection(db, "transactions"), transactionData);
       
       if (data.category === 'Préstamo' && data.loanDetails) {
         const { loanId, totalAmount, installments, frequency, startDate } = data.loanDetails;
@@ -168,7 +162,7 @@ export default function TransactionsPage() {
         await batch.commit();
       }
 
-      const newTransaction = { ...data, date: data.date };
+      const newTransaction = { ...transactionData, id: docRef.id, date: data.date };
       const newTransactions = [newTransaction, ...transactions].sort((a,b) => b.date.getTime() - a.date.getTime());
       setTransactions(newTransactions as Transaction[]);
 
@@ -449,63 +443,71 @@ export default function TransactionsPage() {
             <CardDescription>Tus últimos movimientos financieros registrados.</CardDescription>
           </CardHeader>
           <CardContent>
-             <div className="relative overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Descripción</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Categoría</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead className="text-right">Monto</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      Array.from({ length: 5 }).map((_, i) => (
-                        <TableRow key={i}>
-                          <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                          <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                          <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                          <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                          <TableCell className="text-right"><Skeleton className="h-5 w-16" /></TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      transactions.map((tx, index) => {
-                        const finalAmount = tx.hasAdvance && tx.advanceAmount ? tx.amount - tx.advanceAmount : tx.amount;
-                        return (
-                          <TableRow key={index}>
-                            <TableCell className="font-medium">{tx.description}</TableCell>
-                            <TableCell>
-                              {tx.type === 'income' ? (
-                                <span className="flex items-center text-primary"><ArrowUp className="mr-1 h-4 w-4" /> Ingreso</span>
-                              ) : (
-                                <span className="flex items-center text-destructive"><ArrowDown className="mr-1 h-4 w-4" /> Gasto</span>
-                              )}
-                            </TableCell>
-                            <TableCell><Badge variant="outline">{tx.category}</Badge></TableCell>
-                            <TableCell>{format(tx.date, "PPP")}</TableCell>
-                            <TableCell className={'text-right font-mono'}>
+             <div className="space-y-4">
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="p-4 rounded-lg border">
+                      <div className="flex justify-between mb-2">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-16" />
+                      </div>
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-4 w-1/2" />
+                      </div>
+                    </div>
+                  ))
+                ) : transactions.length > 0 ? (
+                  transactions.map((tx, index) => {
+                    const finalAmount = tx.hasAdvance && tx.advanceAmount ? tx.amount - tx.advanceAmount : tx.amount;
+                    return (
+                       <div key={tx.id}>
+                        <div className="p-4 rounded-lg relative">
+                          <div className="flex justify-between items-start mb-2">
+                            <p className="text-xs font-mono text-muted-foreground">ID#{(tx.id || '').substring(0, 5).toUpperCase()}</p>
+                            <p className="font-semibold text-right">
                               {tx.hasAdvance && tx.advanceAmount ? (
-                                 <div className="flex flex-col items-end">
-                                    <span className="text-xs text-muted-foreground line-through">${tx.amount.toFixed(2)}</span>
-                                    <span className={tx.type === 'income' ? 'text-primary' : ''}>
-                                      {tx.type === 'income' ? '+' : '-'}${finalAmount.toFixed(2)}
-                                    </span>
-                                 </div>
+                                <div className="flex flex-col items-end">
+                                  <span className="text-xs text-muted-foreground line-through">${tx.amount.toFixed(2)}</span>
+                                  <span className={tx.type === 'income' ? 'text-primary' : 'text-destructive'}>
+                                    {tx.type === 'income' ? '+' : '-'}${finalAmount.toFixed(2)}
+                                  </span>
+                                </div>
                               ) : (
-                                <span className={tx.type === 'income' ? 'text-primary' : ''}>
+                                <span className={tx.type === 'income' ? 'text-primary' : 'text-destructive'}>
                                   {tx.type === 'income' ? '+' : '-'}${tx.amount.toFixed(2)}
                                 </span>
                               )}
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })
-                    )}
-                  </TableBody>
-                </Table>
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <div>
+                              <p className="text-xs text-muted-foreground">DESCRIPCIÓN</p>
+                              <p className="font-medium truncate">{tx.description}</p>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="flex-1">
+                                    <p className="text-xs text-muted-foreground">TIPO</p>
+                                    <p className="font-medium flex items-center">{tx.type === 'income' ? <ArrowUp className="mr-1 h-4 w-4 text-primary" /> : <ArrowDown className="mr-1 h-4 w-4 text-destructive" />} {tx.type === 'income' ? 'Ingreso' : 'Gasto'}</p>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-xs text-muted-foreground">CATEGORÍA</p>
+                                    <p className="font-medium"><Badge variant="outline">{tx.category}</Badge></p>
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">FECHA</p>
+                                <p className="font-medium">{format(tx.date, "PPP")}</p>
+                            </div>
+                          </div>
+                        </div>
+                        {index < transactions.length - 1 && <Separator />}
+                      </div>
+                    )
+                  })
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">No tienes transacciones recientes.</p>
+                )}
              </div>
           </CardContent>
         </Card>
@@ -513,3 +515,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
