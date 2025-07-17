@@ -84,8 +84,6 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (watchedCategory === 'Salario' || watchedCategory === 'Préstamo') {
         form.setValue('type', 'income');
-    } else {
-        form.setValue('type', 'expense');
     }
   }, [watchedCategory, form.setValue]);
   
@@ -177,13 +175,11 @@ export default function TransactionsPage() {
       });
       return;
     }
-
-    const transactionType = (data.category === 'Salario' || data.category === 'Préstamo') ? 'income' : 'expense';
     
     const transactionData: any = {
       description: data.description,
       amount: data.amount,
-      type: transactionType,
+      type: data.type,
       category: data.category,
       userId: user.uid,
       date: Timestamp.fromDate(data.date),
