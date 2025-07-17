@@ -10,7 +10,7 @@ let app: FirebaseApp;
 let firebaseAuth: Auth;
 let db: Firestore;
 
-function initializeFirebase() {
+function initializeFirebase(): FirebaseApp {
     if (getApps().length === 0) {
         app = initializeApp(firebaseConfig);
     } else {
@@ -18,6 +18,7 @@ function initializeFirebase() {
     }
     firebaseAuth = getAuth(app);
     db = getFirestore(app);
+    return app;
 }
 
 export { app, db, firebaseAuth, initializeFirebase };

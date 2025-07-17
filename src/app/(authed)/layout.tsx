@@ -20,14 +20,16 @@ export default function AuthedLayout({
 
   useEffect(() => {
     const init = async () => {
-      const { initializeFirebase, firebaseAuth } = await import('@/lib/firebase');
+      const { initializeFirebase } = await import('@/lib/firebase');
       const { getFirestore, collection, getDocs, query, where, Timestamp, orderBy, deleteDoc, addDoc, updateDoc, writeBatch } = await import('firebase/firestore');
-      const { onAuthStateChanged, signOut } = await import('firebase/auth');
+      const { getAuth, onAuthStateChanged, signOut } = await import('firebase/auth');
 
-      initializeFirebase();
-      const authInstance = firebaseAuth;
+      const app = initializeFirebase();
+      const authInstance = getAuth(app);
+      const dbInstance = getFirestore(app);
+
       setAuth(authInstance);
-      setDb(getFirestore());
+      setDb(dbInstance);
       setFirebaseUtils({
         collection,
         getDocs,
