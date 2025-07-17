@@ -240,10 +240,11 @@ export default function CreditPage() {
         const querySnapshot = await getDocs(q);
         const statementsData = querySnapshot.docs.map(doc => {
             const data = doc.data();
+            const dueDate = data.dueDate instanceof Timestamp ? data.dueDate.toDate() : new Date();
             return {
                 id: doc.id,
                 ...data,
-                dueDate: (data.dueDate as Timestamp).toDate()
+                dueDate: dueDate,
             } as StatementWithId
         });
         setStatements(statementsData);
