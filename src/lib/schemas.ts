@@ -3,9 +3,8 @@ import * as z from "zod";
 
 export const loanSchema = z.object({
   loanId: z.string().min(1, "Se requiere un ID para el préstamo."),
-  totalAmount: z.coerce.number().positive("El monto total debe ser positivo."),
-  interestRate: z.coerce.number().min(0, "La tasa de interés no puede ser negativa."),
-  installments: z.coerce.number().int().min(1, "Debe haber al menos una cuota."),
+  installments: z.coerce.number().int().min(1, "Debe haber al menos una cuota.").max(24, "El máximo es 24 cuotas."),
+  installmentAmounts: z.array(z.coerce.number().positive("Cada cuota debe ser un número positivo.")).optional(),
   frequency: z.enum(["monthly", "bi-weekly"], { required_error: "Debes seleccionar una frecuencia." }),
   startDate: z.date({ required_error: "Se requiere una fecha de inicio de pago." }),
 });
@@ -41,12 +40,17 @@ export const transactionSchema = z.object({
     path: ["advanceAmount"],
 }).refine(data => {
     if (data.category === 'Préstamo') {
-        return !!data.loanDetails;
+        const details = data.loanDetails;
+        if (!details) return false;
+        if (!details.installmentAmounts || details.installmentAmounts.length !== details.installments) {
+            return false;
+        }
+        return details.installmentAmounts.every(amount => amount > 0);
     }
     return true;
 }, {
-    message: "Los detalles del préstamo son requeridos.",
-    path: ["loanDetails"],
+    message: "Debe ingresar un monto válido para cada cuota.",
+    path: ["loanDetails.installmentAmounts"],
 });
 
 export type Transaction = z.infer<typeof transactionSchema>;

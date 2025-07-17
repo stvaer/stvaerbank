@@ -2,9 +2,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, addMonths, addDays, startOfDay, endOfDay, startOfMonth, endOfMonth, setDate, lastDayOfMonth } from "date-fns";
+import { format, addMonths, setDate, lastDayOfMonth } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp, Pencil } from "lucide-react";
 import type { Timestamp } from "firebase/firestore";
 import { DateRange } from "react-day-picker";
@@ -64,24 +64,55 @@ export default function TransactionsPage() {
       advanceAmount: 0,
       loanDetails: {
         loanId: '',
-        totalAmount: 0,
-        interestRate: 0,
-        installments: 0,
+        installments: 1,
+        installmentAmounts: [],
         frequency: 'monthly',
         startDate: new Date(),
       }
     },
   });
 
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "loanDetails.installmentAmounts"
+  });
+
   const watchedCategory = form.watch("category");
   const watchedHasAdvance = form.watch("hasAdvance");
+  const watchedInstallments = form.watch("loanDetails.installments");
+  const watchedInstallmentAmounts = form.watch("loanDetails.installmentAmounts");
+
+  useEffect(() => {
+    if (watchedCategory === 'Préstamo' && watchedInstallmentAmounts) {
+      const total = watchedInstallmentAmounts.reduce((sum, item) => sum + (Number(item) || 0), 0);
+      form.setValue('amount', total);
+    }
+  }, [watchedInstallmentAmounts, watchedCategory, form]);
+
+  useEffect(() => {
+    if (watchedCategory === 'Préstamo') {
+        const currentAmount = fields.length;
+        const newAmount = Number(watchedInstallments) || 0;
+        if (newAmount > currentAmount) {
+            for (let i = currentAmount; i < newAmount; i++) {
+                append(0);
+            }
+        } else if (newAmount < currentAmount) {
+            for (let i = currentAmount; i > newAmount; i--) {
+                remove(i - 1);
+            }
+        }
+    } else {
+        remove(); // Remove all installment amount fields if category is not Préstamo
+    }
+  }, [watchedInstallments, watchedCategory, fields.length, append, remove]);
 
   
   const fetchTransactions = useCallback(async (uid: string) => {
     if (!db || !firebaseUtils) return;
     setLoading(true);
 
-    const { collection, query, where, orderBy, getDocs, Timestamp, limit } = firebaseUtils;
+    const { collection, query, where, orderBy, getDocs, Timestamp, limit, startOfDay, endOfDay, startOfMonth, endOfMonth } = firebaseUtils;
 
     try {
         let q;
@@ -90,25 +121,25 @@ export default function TransactionsPage() {
 
         switch (filterType) {
             case "today":
-                constraints.push(where("date", ">=", Timestamp.fromDate(startOfDay(new Date()))));
-                constraints.push(where("date", "<=", Timestamp.fromDate(endOfDay(new Date()))));
+                constraints.push(where("date", ">=", Timestamp.fromDate(new Date(new Date().setHours(0, 0, 0, 0)))));
+                constraints.push(where("date", "<=", Timestamp.fromDate(new Date(new Date().setHours(23, 59, 59, 999)))));
                 break;
             case "month":
-                constraints.push(where("date", ">=", Timestamp.fromDate(startOfMonth(new Date()))));
-                constraints.push(where("date", "<=", Timestamp.fromDate(endOfMonth(new Date()))));
+                 constraints.push(where("date", ">=", Timestamp.fromDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1))));
+                 constraints.push(where("date", "<=", Timestamp.fromDate(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0))));
                 break;
             case "date":
                 if (date) {
-                    constraints.push(where("date", ">=", Timestamp.fromDate(startOfDay(date))));
-                    constraints.push(where("date", "<=", Timestamp.fromDate(endOfDay(date))));
+                    constraints.push(where("date", ">=", Timestamp.fromDate(new Date(date.setHours(0,0,0,0)))));
+                    constraints.push(where("date", "<=", Timestamp.fromDate(new Date(date.setHours(23,59,59,999)))));
                 }
                 break;
             case "range":
                 if (dateRange?.from) {
-                     constraints.push(where("date", ">=", Timestamp.fromDate(startOfDay(dateRange.from))));
+                     constraints.push(where("date", ">=", Timestamp.fromDate(new Date(dateRange.from.setHours(0,0,0,0)))));
                 }
                 if (dateRange?.to) {
-                     constraints.push(where("date", "<=", Timestamp.fromDate(endOfDay(dateRange.to))));
+                     constraints.push(where("date", "<=", Timestamp.fromDate(new Date(dateRange.to.setHours(23,59,59,999)))));
                 }
                 break;
             case "recent":
@@ -202,18 +233,9 @@ export default function TransactionsPage() {
         date: Timestamp.fromDate(transactionData.date)
       });
       
-      if (data.category === 'Préstamo' && data.loanDetails) {
-        const { loanId, totalAmount, installments, frequency, startDate, interestRate } = data.loanDetails;
+      if (data.category === 'Préstamo' && data.loanDetails && data.loanDetails.installmentAmounts) {
+        const { loanId, installments, frequency, startDate, installmentAmounts } = data.loanDetails;
         
-        let installmentAmount;
-        if (interestRate > 0) {
-            const monthlyRate = interestRate / 100 / 12;
-            const power = Math.pow(1 + monthlyRate, installments);
-            installmentAmount = totalAmount * (monthlyRate * power) / (power - 1);
-        } else {
-            installmentAmount = totalAmount / installments;
-        }
-
         const batch = writeBatch(db);
 
         let currentDueDate: Date = new Date(startDate);
@@ -239,13 +261,12 @@ export default function TransactionsPage() {
 
           const billData = {
             name: `Cuota ${i + 1}/${installments} - Préstamo ${loanId}`,
-            amount: installmentAmount,
+            amount: installmentAmounts[i],
             dueDate: Timestamp.fromDate(dueDate),
             userId: user.uid,
           };
           const billRef = doc(collection(db, "bills"));
           batch.set(billRef, billData);
-
         }
         await batch.commit();
       }
@@ -267,9 +288,8 @@ export default function TransactionsPage() {
         advanceAmount: 0,
         loanDetails: {
             loanId: '',
-            totalAmount: 0,
-            interestRate: 0,
-            installments: 0,
+            installments: 1,
+            installmentAmounts: [],
             frequency: 'monthly',
             startDate: new Date(),
         }
@@ -344,27 +364,14 @@ export default function TransactionsPage() {
           startDate: isDate ? startDate : new Date(),
       } : {
         loanId: '',
-        totalAmount: 0,
-        interestRate: 0,
-        installments: 0,
+        installments: 1,
+        installmentAmounts: [],
         frequency: 'monthly',
         startDate: new Date(),
       }
     });
     setEditModalOpen(true);
   }
-  
-  const calculateInstallmentAmount = (loanDetails: LoanDetails): number => {
-    if (!loanDetails) return 0;
-    const { totalAmount, installments, interestRate } = loanDetails;
-    if (interestRate > 0) {
-        const monthlyRate = interestRate / 100 / 12;
-        const power = Math.pow(1 + monthlyRate, installments);
-        return totalAmount * (monthlyRate * power) / (power - 1);
-    }
-    return totalAmount / installments;
-  };
-
 
   return (
     <>
@@ -398,7 +405,7 @@ export default function TransactionsPage() {
                       <FormItem>
                         <FormLabel>Monto</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                          <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} disabled={watchedCategory === 'Préstamo'} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -518,24 +525,6 @@ export default function TransactionsPage() {
                             <FormItem><FormLabel>ID del Préstamo</FormLabel><FormControl><Input placeholder="ej. PREST-001" {...field} /></FormControl><FormMessage /></FormItem>
                           )}
                         />
-                         <FormField
-                            control={form.control}
-                            name="loanDetails.totalAmount"
-                            render={({ field }) => (
-                              <FormItem><FormLabel>Monto Total del Préstamo</FormLabel><FormControl><Input type="number" placeholder="5000.00" {...field} onChange={(e) => {
-                                  const value = parseFloat(e.target.value) || 0;
-                                  field.onChange(value);
-                                  form.setValue('amount', value);
-                              }} /></FormControl><FormMessage /></FormItem>
-                            )}
-                          />
-                        <FormField
-                            control={form.control}
-                            name="loanDetails.interestRate"
-                            render={({ field }) => (
-                              <FormItem><FormLabel>Tasa de Interés Anual (%)</FormLabel><FormControl><Input type="number" placeholder="15" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
-                            )}
-                          />
                         <FormField
                           control={form.control}
                           name="loanDetails.installments"
@@ -543,6 +532,22 @@ export default function TransactionsPage() {
                             <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
                           )}
                         />
+                        {fields.map((item, index) => (
+                           <FormField
+                            key={item.id}
+                            control={form.control}
+                            name={`loanDetails.installmentAmounts.${index}`}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Monto Cuota {index + 1}</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                           />
+                        ))}
                         <FormField
                           control={form.control}
                           name="loanDetails.frequency"
@@ -752,7 +757,7 @@ export default function TransactionsPage() {
                                 </div>
                                )}
                                {tx.category === 'Préstamo' && tx.loanDetails && (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 mt-2 border-t border-dashed">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-2 mt-2 border-t border-dashed">
                                     <div>
                                         <p className="text-xs text-muted-foreground">ID PRÉSTAMO</p>
                                         <p className="font-medium text-xs truncate">{tx.loanDetails.loanId}</p>
@@ -764,10 +769,6 @@ export default function TransactionsPage() {
                                     <div>
                                         <p className="text-xs text-muted-foreground">FRECUENCIA</p>
                                         <p className="font-medium text-xs capitalize">{tx.loanDetails.frequency === 'monthly' ? 'Mensual' : 'Quincenal'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">MONTO CUOTA</p>
-                                        <p className="font-medium text-xs">${calculateInstallmentAmount(tx.loanDetails).toFixed(2)}</p>
                                     </div>
                                 </div>
                                )}
@@ -817,7 +818,7 @@ export default function TransactionsPage() {
                         <FormItem>
                           <FormLabel>Monto</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                            <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} disabled={watchedCategory === 'Préstamo'} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -891,31 +892,29 @@ export default function TransactionsPage() {
                               <FormItem><FormLabel>ID del Préstamo</FormLabel><FormControl><Input placeholder="ej. PREST-001" {...field} /></FormControl><FormMessage /></FormItem>
                             )}
                           />
-                          <FormField
-                              control={form.control}
-                              name="loanDetails.totalAmount"
-                              render={({ field }) => (
-                                <FormItem><FormLabel>Monto Total del Préstamo</FormLabel><FormControl><Input type="number" placeholder="5000.00" {...field} onChange={(e) => {
-                                    const value = parseFloat(e.target.value) || 0;
-                                    field.onChange(value);
-                                    form.setValue('amount', value);
-                                }} /></FormControl><FormMessage /></FormItem>
-                              )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="loanDetails.interestRate"
-                                render={({ field }) => (
-                                <FormItem><FormLabel>Tasa de Interés Anual (%)</FormLabel><FormControl><Input type="number" placeholder="15" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
-                                )}
-                            />
-                          <FormField
+                           <FormField
                             control={form.control}
                             name="loanDetails.installments"
                             render={({ field }) => (
-                              <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
                             )}
-                          />
+                            />
+                            {fields.map((item, index) => (
+                                <FormField
+                                    key={item.id}
+                                    control={form.control}
+                                    name={`loanDetails.installmentAmounts.${index}`}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Monto Cuota {index + 1}</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            ))}
                           <FormField
                             control={form.control}
                             name="loanDetails.frequency"
