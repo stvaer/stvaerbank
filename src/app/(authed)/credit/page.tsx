@@ -4,9 +4,9 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy, deleteDoc } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { PlusCircle, MoreVertical, SquarePlus, FileText, Search, Calendar as CalendarIcon } from "lucide-react";
+import { PlusCircle, MoreVertical, SquarePlus, FileText, Search, Calendar as CalendarIcon, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 import { db, app } from "@/lib/firebase";
@@ -69,6 +69,8 @@ export default function CreditPage() {
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
   const [isStatementModalOpen, setStatementModalOpen] = useState(false);
   const [isViewStatementsModalOpen, setViewStatementsModalOpen] = useState(false);
+  const [isEditStatementModalOpen, setEditStatementModalOpen] = useState(false);
+  const [editingStatement, setEditingStatement] = useState<StatementWithId | null>(null);
   const { toast } = useToast();
   const auth = getAuth(app);
   const [user, setUser] = useState(auth.currentUser);
@@ -227,6 +229,31 @@ export default function CreditPage() {
       }
   }
 
+  async function onStatementUpdate(data: Statement) {
+      if (!editingStatement) return;
+      try {
+          const statementRef = doc(db, "statements", editingStatement.id);
+          await updateDoc(statementRef, {
+              ...data,
+              dueDate: Timestamp.fromDate(data.dueDate),
+          });
+
+          toast({
+              title: "Estado de Cuenta Actualizado",
+              description: `El estado de cuenta del mes ${data.month} ha sido actualizado.`,
+          });
+          setEditStatementModalOpen(false);
+          setEditingStatement(null);
+          // Refresh the statements list
+          if (selectedCard) {
+            await onViewStatements(selectedCard);
+          }
+      } catch (error) {
+          console.error("Error al actualizar el estado de cuenta: ", error);
+          toast({ title: "Error", description: "No se pudo actualizar el estado de cuenta.", variant: "destructive" });
+      }
+  }
+
   async function onViewStatements(card: CreditCardWithId) {
     if (!user) return;
     setSelectedCard(card);
@@ -252,6 +279,37 @@ export default function CreditPage() {
     } catch (error) {
        console.error("Error al obtener estados de cuenta: ", error);
        toast({ title: "Error", description: "No se pudieron obtener los estados de cuenta.", variant: "destructive" });
+    }
+  }
+
+  function handleEditStatement(statement: StatementWithId) {
+      setEditingStatement(statement);
+      statementForm.reset({
+        ...statement,
+        dueDate: statement.dueDate,
+      });
+      setEditStatementModalOpen(true);
+  }
+
+  async function handleDeleteCard(cardId: string) {
+    if (!user) return;
+    if (!confirm("¿Estás seguro de que quieres eliminar esta tarjeta y todos sus estados de cuenta asociados? Esta acción no se puede deshacer.")) {
+        return;
+    }
+
+    try {
+        // Here you could also delete associated statements if you wish
+        // For now, we just delete the card
+        await deleteDoc(doc(db, "credit_cards", cardId));
+        toast({
+            title: "Tarjeta Eliminada",
+            description: "La tarjeta de crédito ha sido eliminada.",
+            variant: "destructive"
+        });
+        await fetchCreditCards(user.uid); // Refresh list
+    } catch (error) {
+        console.error("Error al eliminar la tarjeta: ", error);
+        toast({ title: "Error", description: "No se pudo eliminar la tarjeta.", variant: "destructive" });
     }
   }
 
@@ -402,7 +460,9 @@ export default function CreditPage() {
                           <DropdownMenuItem onSelect={() => onViewStatements(card)}>
                             <Search className="mr-2 h-4 w-4" /> Ver Estados de Cuenta
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">Eliminar Tarjeta</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteCard(card.id)}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar Tarjeta
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </CardHeader>
@@ -473,7 +533,7 @@ export default function CreditPage() {
         </DialogContent>
       </Dialog>
       
-      {/* Statement Modal */}
+      {/* Statement Modal (Add) */}
       <Dialog open={isStatementModalOpen} onOpenChange={setStatementModalOpen}>
         <DialogContent>
             <DialogHeader>
@@ -595,7 +655,10 @@ export default function CreditPage() {
                 {statements.length > 0 ? (
                     statements.map((statement, index) => (
                         <div key={statement.id}>
-                            <div className="p-4 rounded-lg space-y-3">
+                            <div className="p-4 rounded-lg space-y-3 relative group">
+                                <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleEditStatement(statement)}>
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
                                 <p className="text-sm font-semibold">Mes: {statement.month}</p>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                     <div>
@@ -623,6 +686,115 @@ export default function CreditPage() {
                     <p className="text-muted-foreground text-center py-8">No hay estados de cuenta registrados.</p>
                 )}
             </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Statement Modal */}
+      <Dialog open={isEditStatementModalOpen} onOpenChange={setEditStatementModalOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Editar Estado de Cuenta</DialogTitle>
+                <DialogDescription>
+                    Actualiza los detalles del estado de cuenta de {selectedCard?.cardName} para el mes {editingStatement?.month}.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...statementForm}>
+                <form onSubmit={statementForm.handleSubmit(onStatementUpdate)} className="space-y-4">
+                     <FormField
+                        control={statementForm.control}
+                        name="month"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Mes (YYYY-MM)</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="ej. 2024-07" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={statementForm.control}
+                        name="statementBalance"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Saldo del Estado de Cuenta</FormLabel>
+                                <FormControl>
+                                    <Input type="number" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={statementForm.control}
+                        name="minimumPayment"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Pago Mínimo</FormLabel>
+                                <FormControl>
+                                    <Input type="number" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={statementForm.control}
+                        name="paymentForNoInterest"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Pago para no Generar Intereses</FormLabel>
+                                <FormControl>
+                                    <Input type="number" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={statementForm.control}
+                        name="dueDate"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>Fecha Límite de Pago</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                      "pl-3 text-left font-normal",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {field.value ? (
+                                      format(field.value, "PPP")
+                                    ) : (
+                                      <span>Elige una fecha</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value instanceof Timestamp ? field.value.toDate() : field.value}
+                                  onSelect={field.onChange}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    <DialogFooter>
+                        <Button type="submit">Actualizar Estado de Cuenta</Button>
+                    </DialogFooter>
+                </form>
+            </Form>
         </DialogContent>
       </Dialog>
     </>
