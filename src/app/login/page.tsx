@@ -35,6 +35,14 @@ export default function LoginPage() {
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [isModalOpen]);
+  
+  // Effect to handle login when pin is complete
+  useEffect(() => {
+    if (pin.every(digit => digit !== '')) {
+      handleLogin();
+    }
+  }, [pin]);
+
 
   const openModal = () => {
     setIsModalOpen(true);
@@ -63,10 +71,6 @@ export default function LoginPage() {
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
-    
-    if (newPin.every(p => p !== '')) {
-        handleLogin(newPin.join(""));
-    }
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {
@@ -79,7 +83,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleLogin = async (currentPin?: string) => {
+  const handleLogin = async () => {
     if (!auth) {
         setErrorMessage("Firebase no está listo. Inténtalo de nuevo.");
         setError(true);
@@ -88,7 +92,7 @@ export default function LoginPage() {
     setError(false);
     setErrorMessage("");
     
-    const password = currentPin || pin.join("");
+    const password = pin.join("");
     if (!email || password.length < 6) {
         if (!email) {
             setErrorMessage("Por favor, introduce tu correo.");
@@ -194,7 +198,7 @@ export default function LoginPage() {
                   CANCELAR
                 </button>
                 <button
-                  onClick={() => handleLogin()}
+                  onClick={handleLogin}
                   className="terminal-button w-1/2 py-3 text-sm"
                 >
                   INICIAR
