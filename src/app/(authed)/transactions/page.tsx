@@ -80,7 +80,7 @@ export default function TransactionsPage() {
     if (!db || !firebaseUtils) return;
     setLoading(true);
 
-    const { collection, query, where, orderBy, limit, Timestamp, getDocs } = firebaseUtils;
+    const { collection, query, where, orderBy, getDocs, Timestamp, limit } = firebaseUtils;
 
     try {
         let q;
@@ -660,10 +660,10 @@ export default function TransactionsPage() {
                               <div className="font-semibold text-right">
                                 {tx.hasAdvance && tx.advanceAmount ? (
                                   <div className="flex flex-col items-end">
-                                    <span className="text-xs text-muted-foreground line-through">${tx.amount.toFixed(2)}</span>
                                     <span className={tx.type === 'income' ? 'text-primary' : 'text-destructive'}>
                                       {tx.type === 'income' ? '+' : '-'}${finalAmount.toFixed(2)}
                                     </span>
+                                    <span className="text-xs text-muted-foreground line-through">${tx.amount.toFixed(2)}</span>
                                   </div>
                                 ) : (
                                   <span className={tx.type === 'income' ? 'text-primary' : 'text-destructive'}>
@@ -691,6 +691,28 @@ export default function TransactionsPage() {
                                   <p className="text-xs text-muted-foreground">FECHA</p>
                                   <p className="font-medium">{format(tx.date, "PPP")}</p>
                               </div>
+                               {tx.hasAdvance && tx.advanceAmount && (
+                                <div>
+                                    <p className="text-xs text-muted-foreground">ADELANTO DE SALARIO</p>
+                                    <p className="font-medium">${tx.advanceAmount.toFixed(2)}</p>
+                                </div>
+                               )}
+                               {tx.category === 'Préstamo' && tx.loanDetails && (
+                                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-dashed">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">ID PRÉSTAMO</p>
+                                        <p className="font-medium text-xs truncate">{tx.loanDetails.loanId}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">CUOTAS</p>
+                                        <p className="font-medium text-xs">{tx.loanDetails.installments}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">FRECUENCIA</p>
+                                        <p className="font-medium text-xs capitalize">{tx.loanDetails.frequency === 'monthly' ? 'Mensual' : 'Quincenal'}</p>
+                                    </div>
+                                </div>
+                               )}
                             </div>
                           </div>
                           {index < transactions.length - 1 && <Separator />}
