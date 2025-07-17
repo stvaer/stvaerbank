@@ -45,7 +45,7 @@ export default function DashboardPage() {
         const totalBalance = totalIncome - totalExpense;
         const checkingAccount = totalBalance * 0.4;
         const savingsAccount = totalBalance * 0.6;
-        const totalCreditCardDebt = creditCardsData.reduce((acc, card) => acc + card.currentDebt, 0);
+        const totalCreditCardDebt = creditCardsData.reduce((acc: number, card) => acc + card.currentDebt, 0);
 
         setBalances([
           { name: "Balance Total", value: totalBalance, icon: DollarSign, color: "text-primary" },
