@@ -75,14 +75,20 @@ export default function TransactionsPage() {
   const watchedHasAdvance = form.watch("hasAdvance");
 
   useEffect(() => {
-    if (watchedCategory) {
-      if (watchedCategory === 'Salario' || watchedCategory === 'Préstamo') {
-        form.setValue('type', 'income');
-      } else {
-        form.setValue('type', 'expense');
-      }
+    if (user) {
+        fetchTransactions(user.uid);
     }
-  }, [watchedCategory, form]);
+  }, [user, filterType, date, dateRange]);
+
+
+  useEffect(() => {
+    if (watchedCategory === 'Salario' || watchedCategory === 'Préstamo') {
+        form.setValue('type', 'income');
+    } else {
+        form.setValue('type', 'expense');
+    }
+  }, [watchedCategory, form.setValue]);
+  
   
   const fetchTransactions = async (uid: string) => {
     setLoading(true);
@@ -161,12 +167,6 @@ export default function TransactionsPage() {
     return () => unsubscribe();
   }, [auth]);
 
-  useEffect(() => {
-    if (user) {
-        fetchTransactions(user.uid);
-    }
-  }, [user, filterType, date, dateRange]);
-
 
   async function onSubmit(data: FormValues) {
     if (!user) {
@@ -177,11 +177,13 @@ export default function TransactionsPage() {
       });
       return;
     }
+
+    const transactionType = (data.category === 'Salario' || data.category === 'Préstamo') ? 'income' : 'expense';
     
     const transactionData: any = {
       description: data.description,
       amount: data.amount,
-      type: data.type,
+      type: transactionType,
       category: data.category,
       userId: user.uid,
       date: Timestamp.fromDate(data.date),
@@ -308,7 +310,6 @@ export default function TransactionsPage() {
                           onValueChange={field.onChange}
                           value={field.value}
                           className="flex space-x-4"
-                          disabled
                         >
                           <FormItem className="flex items-center space-x-2 space-y-0">
                             <FormControl>
@@ -640,5 +641,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
