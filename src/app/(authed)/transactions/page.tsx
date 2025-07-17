@@ -82,10 +82,23 @@ export default function TransactionsPage() {
 
 
   useEffect(() => {
+    // When category changes, reset loan details if it's not a loan
+    if (watchedCategory !== 'Préstamo') {
+      form.setValue('loanDetails', {
+        loanId: '',
+        totalAmount: 0,
+        installments: 0,
+        frequency: 'monthly',
+        startDate: new Date(),
+      });
+    }
+    // Automatically set type based on category
     if (watchedCategory === 'Salario' || watchedCategory === 'Préstamo') {
         form.setValue('type', 'income');
+    } else {
+        form.setValue('type', 'expense');
     }
-  }, [watchedCategory, form.setValue]);
+  }, [watchedCategory, form.setValue, form.resetField]);
   
   
   const fetchTransactions = async (uid: string) => {
@@ -306,6 +319,7 @@ export default function TransactionsPage() {
                           onValueChange={field.onChange}
                           value={field.value}
                           className="flex space-x-4"
+                          disabled={!!watchedCategory}
                         >
                           <FormItem className="flex items-center space-x-2 space-y-0">
                             <FormControl>
@@ -637,3 +651,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
