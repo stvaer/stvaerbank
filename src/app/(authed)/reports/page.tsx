@@ -198,5 +198,3 @@ export default function ReportsPage({ user, db, firebaseUtils }: ReportsPageProp
     </div>
   )
 }
-
-    

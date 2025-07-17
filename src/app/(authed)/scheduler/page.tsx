@@ -329,5 +329,3 @@ export default function SchedulerPage({ user, db, firebaseUtils }: SchedulerPage
     </div>
   )
 }
-
-    

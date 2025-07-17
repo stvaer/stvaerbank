@@ -179,5 +179,3 @@ export default function DashboardPage({ user, db, firebaseUtils }: DashboardPage
     </div>
   );
 }
-
-    

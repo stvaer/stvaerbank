@@ -643,5 +643,3 @@ export default function TransactionsPage({ user, db, firebaseUtils }: Transactio
     </div>
   );
 }
-
-    

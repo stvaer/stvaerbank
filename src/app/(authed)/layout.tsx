@@ -1,9 +1,9 @@
 
 "use client";
 
-import { AppLayout } from "@/components/layout";
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { User } from 'firebase/auth';
+import { AppLayout } from "@/components/layout";
 
 export default function AuthedLayout({
   children,
@@ -23,7 +23,8 @@ export default function AuthedLayout({
       const { onAuthStateChanged, signOut } = await import('firebase/auth');
 
       initializeFirebase();
-      setAuth(firebaseAuth);
+      const authInstance = firebaseAuth;
+      setAuth(authInstance);
       setDb(getFirestore());
       setFirebaseUtils({
         collection,
@@ -36,11 +37,10 @@ export default function AuthedLayout({
         addDoc,
         updateDoc,
         writeBatch,
-        onAuthStateChanged,
         signOut,
       });
 
-      const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
+      const unsubscribe = onAuthStateChanged(authInstance, (currentUser) => {
         setUser(currentUser);
         setFirebaseReady(true);
       });
@@ -53,6 +53,7 @@ export default function AuthedLayout({
 
   const childrenWithProps = React.Children.map(children, child => {
     if (React.isValidElement(child)) {
+      // Cloning element and passing all the necessary props.
       return React.cloneElement(child, { user, db, firebaseUtils, auth } as React.Attributes & { user: User | null, db: any, firebaseUtils: any, auth: any });
     }
     return child;
@@ -64,5 +65,3 @@ export default function AuthedLayout({
     </AppLayout>
   );
 }
-
-    

@@ -792,7 +792,7 @@ export default function CreditPage({ user, db, firebaseUtils }: CreditPageProps)
                               <PopoverContent className="w-auto p-0" align="start">
                                 <Calendar
                                   mode="single"
-                                  selected={firebaseUtils?.Timestamp && field.value instanceof firebaseUtils.Timestamp ? field.value.toDate() : field.value}
+                                  selected={field.value}
                                   onSelect={field.onChange}
                                   initialFocus
                                 />
@@ -812,5 +812,3 @@ export default function CreditPage({ user, db, firebaseUtils }: CreditPageProps)
     </>
   );
 }
-
-    

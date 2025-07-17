@@ -3,8 +3,7 @@
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { initializeFirebase, firebaseAuth } from "@/lib/firebase";
+import type { Auth, Unsubscribe } from "firebase/auth";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
@@ -17,13 +16,19 @@ export default function LoginPage() {
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+  const [auth, setAuth] = useState<Auth | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const gridSpotlightRef = useRef<HTMLDivElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    initializeFirebase();
-    setIsFirebaseReady(true); // Assume ready after initialization call
+    const initFirebase = async () => {
+        const { initializeFirebase, firebaseAuth } = await import('@/lib/firebase');
+        initializeFirebase();
+        setAuth(firebaseAuth);
+        setIsFirebaseReady(true);
+    };
+    initFirebase();
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isModalOpen && gridSpotlightRef.current) {
@@ -77,7 +82,7 @@ export default function LoginPage() {
   };
 
   const handleLogin = async () => {
-    if (!isFirebaseReady || !firebaseAuth) {
+    if (!isFirebaseReady || !auth) {
         setErrorMessage("Firebase no está listo. Inténtalo de nuevo.");
         setError(true);
         return;
@@ -99,7 +104,8 @@ export default function LoginPage() {
     }
 
     try {
-      await signInWithEmailAndPassword(firebaseAuth, email, password);
+      const { signInWithEmailAndPassword } = await import("firebase/auth");
+      await signInWithEmailAndPassword(auth, email, password);
       router.push("/dashboard");
     } catch (error: any) {
       setError(true);
