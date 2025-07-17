@@ -157,8 +157,7 @@ export default function SchedulerPage() {
   const BillIcon = () => <Banknote className="h-3 w-3 text-white absolute bottom-1 right-1" />;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 animate-fade-in">
-      <div className="lg:w-2/5 flex-shrink-0">
+    <div className="space-y-6 animate-fade-in">
         <Card>
           <CardHeader>
             <CardTitle>Programar una Factura</CardTitle>
@@ -240,17 +239,15 @@ export default function SchedulerPage() {
             </Form>
           </CardContent>
         </Card>
-      </div>
 
-      <div className="flex-1">
-        <Card>
-          <CardHeader>
-            <CardTitle>Calendario de Pagos</CardTitle>
-             <CardDescription>Una vista general de tus próximas facturas.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col xl:flex-row gap-6">
-            <div className="flex justify-center xl:flex-1">
-                 <Calendar
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <Card className="lg:col-span-3">
+            <CardHeader>
+                <CardTitle>Calendario de Pagos</CardTitle>
+                <CardDescription>Una vista general de tus próximas facturas.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+                <Calendar
                     mode="single"
                     modifiers={modifiers}
                     modifiersClassNames={modifiersClassNames}
@@ -267,48 +264,53 @@ export default function SchedulerPage() {
                     }}
                     className="p-3 w-full max-w-sm"
                  />
-            </div>
-            <div className="flex-1 xl:border-l xl:pl-6 space-y-4">
-              <h3 className="text-lg font-medium">Facturas Próximas</h3>
-              <div className="relative overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Factura</TableHead>
-                      <TableHead>Vence</TableHead>
-                      <TableHead className="text-right">Monto</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      Array.from({ length: 3 }).map((_, i) => (
-                        <TableRow key={i}>
-                          <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                          <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                          <TableCell className="text-right"><Skeleton className="h-5 w-12" /></TableCell>
-                          <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
+            </CardContent>
+        </Card>
+        
+        <Card className="lg:col-span-2">
+            <CardHeader>
+                <CardTitle>Facturas Próximas</CardTitle>
+                <CardDescription>Tus pagos más cercanos.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="relative overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Factura</TableHead>
+                          <TableHead>Vence</TableHead>
+                          <TableHead className="text-right">Monto</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
-                      ))
-                    ) : (
-                      bills.map((bill) => (
-                        <TableRow key={bill.id}>
-                          <TableCell className="font-medium truncate max-w-28">{bill.name}</TableCell>
-                          <TableCell>{format(bill.dueDate, "PPP")}</TableCell>
-                          <TableCell className="text-right">${bill.amount.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">
-                           <Button variant="ghost" size="icon" onClick={() => removeBill(bill.id)}>
-                             <Trash2 className="h-4 w-4 text-destructive" />
-                           </Button>
-                        </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </CardContent>
+                      </TableHeader>
+                      <TableBody>
+                        {loading ? (
+                          Array.from({ length: 3 }).map((_, i) => (
+                            <TableRow key={i}>
+                              <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                              <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                              <TableCell className="text-right"><Skeleton className="h-5 w-12 ml-auto" /></TableCell>
+                              <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          bills.map((bill) => (
+                            <TableRow key={bill.id}>
+                              <TableCell className="font-medium truncate max-w-28">{bill.name}</TableCell>
+                              <TableCell>{format(bill.dueDate, "PPP")}</TableCell>
+                              <TableCell className="text-right">${bill.amount.toFixed(2)}</TableCell>
+                              <TableCell className="text-right">
+                               <Button variant="ghost" size="icon" onClick={() => removeBill(bill.id)}>
+                                 <Trash2 className="h-4 w-4 text-destructive" />
+                               </Button>
+                            </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
         </Card>
       </div>
     </div>
