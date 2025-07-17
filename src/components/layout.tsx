@@ -5,12 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { AreaChart, ArrowRightLeft, CalendarClock, CreditCard, LayoutDashboard, LogOut, Plus, Bell, CircleDollarSign } from "lucide-react";
-import { onAuthStateChanged, User, signOut, Auth } from "firebase/auth";
-import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { addDays, isBefore, startOfToday } from "date-fns";
-
-import { db, firebaseAuth, initializeFirebase } from "@/lib/firebase";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import type { User, Auth, Unsubscribe } from "firebase/auth";
+import type { Firestore, QuerySnapshot, DocumentData } from "firebase/firestore";
 
 import {
   SidebarProvider,
@@ -53,51 +51,33 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
   const [auth, setAuth] = useState<Auth | null>(null);
+  const [db, setDb] = useState<Firestore | null>(null);
+  const [firebaseUtils, setFirebaseUtils] = useState<any>(null);
 
-  useEffect(() => {
-    initializeFirebase();
-    setAuth(firebaseAuth);
-  }, []);
-
-  useEffect(() => {
-    if (!auth) return;
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        fetchNotifications(currentUser.uid);
-      } else {
-        router.push("/login");
-      }
-    });
-
-    return () => unsubscribe();
-  }, [router, auth]);
-  
-  const fetchNotifications = async (uid: string) => {
-    if (!db) return;
+  const fetchNotifications = useCallback(async (uid: string) => {
+    if (!db || !firebaseUtils) return;
     setLoadingNotifications(true);
+
+    const { collection, query, where, getDocs, Timestamp } = firebaseUtils;
     const today = startOfToday();
     const sevenDaysFromNow = addDays(today, 7);
     let upcomingPayments: Notification[] = [];
 
     try {
-        // Fetch upcoming bills
         const billsQuery = query(
             collection(db, "bills"),
             where("userId", "==", uid),
             where("dueDate", ">=", Timestamp.fromDate(today))
         );
         const billsSnapshot = await getDocs(billsQuery);
-        billsSnapshot.forEach(doc => {
+        billsSnapshot.forEach((doc: DocumentData) => {
             const data = doc.data();
-            const dueDate = (data.dueDate as Timestamp).toDate();
+            const dueDate = (data.dueDate as any).toDate();
             if (isBefore(dueDate, sevenDaysFromNow)) {
                 upcomingPayments.push({ id: doc.id, name: data.name, dueDate, type: 'bill' });
             }
         });
 
-        // Fetch upcoming statements
         const statementsQuery = query(
             collection(db, "statements"),
             where("userId", "==", uid),
@@ -105,9 +85,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             where("isPaid", "==", false)
         );
         const statementsSnapshot = await getDocs(statementsQuery);
-        statementsSnapshot.forEach(doc => {
+        statementsSnapshot.forEach((doc: DocumentData) => {
             const data = doc.data();
-            const dueDate = (data.dueDate as Timestamp).toDate();
+            const dueDate = (data.dueDate as any).toDate();
             if (isBefore(dueDate, sevenDaysFromNow)) {
                 upcomingPayments.push({ id: doc.id, name: `Pago Tarjeta (Mes ${data.month})`, dueDate, type: 'statement' });
             }
@@ -121,10 +101,42 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     } finally {
         setLoadingNotifications(false);
     }
-  };
+  }, [db, firebaseUtils]);
+
+  useEffect(() => {
+    const initFirebase = async () => {
+      const { initializeFirebase, firebaseAuth } = await import("@/lib/firebase");
+      const { getFirestore, collection, getDocs, query, where, Timestamp } = await import("firebase/firestore");
+      const { onAuthStateChanged, signOut } = await import("firebase/auth");
+      
+      initializeFirebase();
+      setAuth(firebaseAuth);
+      setDb(getFirestore());
+      setFirebaseUtils({ collection, getDocs, query, where, Timestamp, onAuthStateChanged, signOut });
+    };
+    initFirebase();
+  }, []);
+
+  useEffect(() => {
+    if (!auth || !firebaseUtils) return;
+
+    const { onAuthStateChanged } = firebaseUtils;
+    const unsubscribe: Unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        fetchNotifications(currentUser.uid);
+      } else {
+        router.push("/login");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router, auth, firebaseUtils, fetchNotifications]);
+  
 
   const handleSignOut = async () => {
-    if (!auth) return;
+    if (!auth || !firebaseUtils) return;
+    const { signOut } = firebaseUtils;
     try {
       await signOut(auth);
       router.push("/login");
@@ -237,5 +249,3 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-
-    

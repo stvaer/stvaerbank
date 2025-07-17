@@ -6,13 +6,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, addDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp, Search } from "lucide-react";
-import { collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc, limit } from "firebase/firestore";
-import { onAuthStateChanged, User, Auth } from "firebase/auth";
+import type { collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc, limit } from "firebase/firestore";
+import type { onAuthStateChanged, User, Auth } from "firebase/auth";
 import { DateRange } from "react-day-picker";
 
 import { transactionSchema, type Transaction, type LoanDetails } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
-import { db, firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +50,8 @@ export default function TransactionsPage() {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [auth, setAuth] = useState<Auth | null>(null);
+  const [db, setDb] = useState<any>(null);
+  const [firebaseUtils, setFirebaseUtils] = useState<any>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(transactionSchema),
@@ -75,9 +76,26 @@ export default function TransactionsPage() {
   const watchedHasAdvance = form.watch("hasAdvance");
 
   
+  useEffect(() => {
+    const initFirebase = async () => {
+        const { initializeFirebase, firebaseAuth } = await import("@/lib/firebase");
+        const { getFirestore, collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc, limit } = await import("firebase/firestore");
+        const { onAuthStateChanged } = await import("firebase/auth");
+        
+        initializeFirebase();
+        setAuth(firebaseAuth);
+        setDb(getFirestore());
+        setFirebaseUtils({ collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc, limit, onAuthStateChanged });
+    };
+    initFirebase();
+  }, []);
+
   const fetchTransactions = useCallback(async (uid: string) => {
-    if (!db) return;
+    if (!db || !firebaseUtils) return;
     setLoading(true);
+
+    const { collection, query, where, orderBy, limit, Timestamp, getDocs } = firebaseUtils;
+
     try {
         let q;
         const baseQuery = collection(db, "transactions");
@@ -118,7 +136,7 @@ export default function TransactionsPage() {
         
         q = query(baseQuery, ...constraints);
         const querySnapshot = await getDocs(q);
-        const transactionsData = querySnapshot.docs.map(doc => {
+        const transactionsData = querySnapshot.docs.map((doc: any) => {
             const data = doc.data();
             return {
                 ...data,
@@ -137,16 +155,11 @@ export default function TransactionsPage() {
     } finally {
         setLoading(false);
     }
-  }, [filterType, date, dateRange, toast]);
+  }, [filterType, date, dateRange, toast, db, firebaseUtils]);
 
   useEffect(() => {
-    initializeFirebase();
-    setAuth(firebaseAuth);
-  }, []);
-
-  useEffect(() => {
-    if (!auth) return;
-
+    if (!auth || !firebaseUtils) return;
+    const { onAuthStateChanged } = firebaseUtils;
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
@@ -157,7 +170,7 @@ export default function TransactionsPage() {
       }
     });
     return () => unsubscribe();
-  }, [auth]);
+  }, [auth, firebaseUtils]);
 
   useEffect(() => {
     if (user) {
@@ -173,7 +186,7 @@ export default function TransactionsPage() {
 
 
   async function onSubmit(data: FormValues) {
-    if (!user || !db) {
+    if (!user || !db || !firebaseUtils) {
       toast({
         title: "Error",
         description: "Debes iniciar sesión para añadir una transacción.",
@@ -181,6 +194,8 @@ export default function TransactionsPage() {
       });
       return;
     }
+    
+    const { collection, addDoc, Timestamp, writeBatch, doc } = firebaseUtils;
     
     const transactionData: Omit<Transaction, 'id'> = {
       description: data.description,
@@ -653,5 +668,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    

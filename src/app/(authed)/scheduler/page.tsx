@@ -1,17 +1,16 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon, PlusCircle, Trash2, Banknote } from "lucide-react"
-import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp, where } from "firebase/firestore";
-import { onAuthStateChanged, User, Auth } from "firebase/auth";
+import type { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp, where } from "firebase/firestore";
+import type { onAuthStateChanged, User, Auth } from "firebase/auth";
 
 import { billSchema, type Bill } from "@/lib/schemas"
 import { cn } from "@/lib/utils"
-import { db, firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -33,6 +32,8 @@ export default function SchedulerPage() {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [auth, setAuth] = useState<Auth | null>(null);
+  const [db, setDb] = useState<any>(null);
+  const [firebaseUtils, setFirebaseUtils] = useState<any>(null);
 
   const form = useForm<Bill>({
     resolver: zodResolver(billSchema),
@@ -44,29 +45,25 @@ export default function SchedulerPage() {
   });
 
   useEffect(() => {
-    initializeFirebase();
-    setAuth(firebaseAuth);
+    const initFirebase = async () => {
+      const { initializeFirebase, firebaseAuth } = await import("@/lib/firebase");
+      const { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp, where } = await import("firebase/firestore");
+      const { onAuthStateChanged } = await import("firebase/auth");
+
+      initializeFirebase();
+      setAuth(firebaseAuth);
+      setDb(getFirestore());
+      setFirebaseUtils({ collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp, where, onAuthStateChanged });
+    }
+    initFirebase();
   }, []);
 
-  useEffect(() => {
-    if (!auth) return;
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-        if (currentUser) {
-            setUser(currentUser);
-            fetchBills(currentUser.uid);
-        } else {
-            setUser(null);
-            setBills([]);
-            setLoading(false);
-        }
-    });
-    return () => unsubscribe();
-  }, [auth]);
-
-  const fetchBills = async (uid: string) => {
-        if (!db) return;
+  const fetchBills = useCallback(async (uid: string) => {
+        if (!db || !firebaseUtils) return;
         setLoading(true);
+
+        const { collection, query, where, orderBy, getDocs, Timestamp } = firebaseUtils;
+
         try {
             const q = query(
                 collection(db, "bills"), 
@@ -74,7 +71,7 @@ export default function SchedulerPage() {
                 orderBy("dueDate", "asc")
             );
             const querySnapshot = await getDocs(q);
-            const billsData = querySnapshot.docs.map(doc => {
+            const billsData = querySnapshot.docs.map((doc: any) => {
                 const data = doc.data();
                 return {
                     id: doc.id,
@@ -94,11 +91,27 @@ export default function SchedulerPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [db, firebaseUtils, toast]);
 
+  useEffect(() => {
+    if (!auth || !firebaseUtils) return;
+    const { onAuthStateChanged } = firebaseUtils;
+
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        if (currentUser) {
+            setUser(currentUser);
+            fetchBills(currentUser.uid);
+        } else {
+            setUser(null);
+            setBills([]);
+            setLoading(false);
+        }
+    });
+    return () => unsubscribe();
+  }, [auth, firebaseUtils, fetchBills]);
 
   async function onSubmit(data: Bill) {
-    if (!user || !db) {
+    if (!user || !db || !firebaseUtils) {
       toast({
         title: "Error",
         description: "Debes iniciar sesión para añadir una factura.",
@@ -106,6 +119,9 @@ export default function SchedulerPage() {
       });
       return;
     }
+    
+    const { collection, addDoc, Timestamp } = firebaseUtils;
+
     try {
         const docRef = await addDoc(collection(db, "bills"), {
             ...data,
@@ -132,9 +148,11 @@ export default function SchedulerPage() {
   }
   
   async function removeBill(id: string) {
-    if (!db) return;
+    if (!db || !firebaseUtils) return;
     const billToRemove = bills.find(b => b.id === id);
     if (!billToRemove) return;
+
+    const { doc, deleteDoc } = firebaseUtils;
 
     try {
         await deleteDoc(doc(db, "bills", id));
@@ -331,5 +349,3 @@ export default function SchedulerPage() {
     </div>
   )
 }
-
-    

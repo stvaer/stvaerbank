@@ -1,13 +1,12 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
-import { collection, getDocs, Timestamp, query, where } from "firebase/firestore";
-import { onAuthStateChanged, User, Auth } from "firebase/auth";
-import { db, firebaseAuth, initializeFirebase } from "@/lib/firebase";
+import type { collection, getDocs, Timestamp, query, where } from "firebase/firestore";
+import type { onAuthStateChanged, User, Auth } from "firebase/auth";
 import { Transaction } from "@/lib/schemas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { subMonths, format, startOfMonth, endOfMonth } from 'date-fns';
@@ -18,32 +17,30 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [auth, setAuth] = useState<Auth | null>(null);
+  const [db, setDb] = useState<any>(null);
+  const [firebaseUtils, setFirebaseUtils] = useState<any>(null);
 
   useEffect(() => {
-    initializeFirebase();
-    setAuth(firebaseAuth);
+    const initFirebase = async () => {
+      const { initializeFirebase, firebaseAuth } = await import("@/lib/firebase");
+      const { getFirestore, collection, getDocs, Timestamp, query, where } = await import("firebase/firestore");
+      const { onAuthStateChanged } = await import("firebase/auth");
+      
+      initializeFirebase();
+      setAuth(firebaseAuth);
+      setDb(getFirestore());
+      setFirebaseUtils({
+        collection, getDocs, Timestamp, query, where, onAuthStateChanged
+      });
+    }
+    initFirebase();
   }, []);
 
-  useEffect(() => {
-    if (!auth) return;
-
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-        if(currentUser) {
-            setUser(currentUser);
-            await fetchData(currentUser.uid);
-        } else {
-            setUser(null);
-            setLoading(false);
-        }
-    });
-
-    return () => unsubscribe();
-  }, [auth]);
-
-  const fetchData = async (uid: string) => {
-      if (!db) return;
+  const fetchData = useCallback(async (uid: string) => {
+      if (!db || !firebaseUtils) return;
       setLoading(true);
       try {
+        const { collection, getDocs, query, where, Timestamp } = firebaseUtils;
         const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", uid));
         const creditCardsQuery = query(collection(db, "credit_cards"), where("userId", "==", uid));
 
@@ -52,7 +49,7 @@ export default function DashboardPage() {
           getDocs(creditCardsQuery),
         ]);
 
-        const transactionsData = transactionsSnapshot.docs.map(doc => {
+        const transactionsData = transactionsSnapshot.docs.map((doc: any) => {
           const data = doc.data();
           return {
             ...data,
@@ -60,7 +57,7 @@ export default function DashboardPage() {
           } as Transaction;
         });
 
-        const creditCardsData = creditCardsSnapshot.docs.map(doc => doc.data());
+        const creditCardsData = creditCardsSnapshot.docs.map((doc: any) => doc.data());
         
         const totalIncome = transactionsData.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
         const totalExpense = transactionsData.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
@@ -106,7 +103,25 @@ export default function DashboardPage() {
       } finally {
         setLoading(false);
       }
-    };
+    }, [db, firebaseUtils]);
+
+  useEffect(() => {
+    if (!auth || !firebaseUtils) return;
+
+    const { onAuthStateChanged } = firebaseUtils;
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+        if(currentUser) {
+            setUser(currentUser);
+            await fetchData(currentUser.uid);
+        } else {
+            setUser(null);
+            setLoading(false);
+        }
+    });
+
+    return () => unsubscribe();
+  }, [auth, firebaseUtils, fetchData]);
+
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
@@ -185,5 +200,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

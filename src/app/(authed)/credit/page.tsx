@@ -1,15 +1,14 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy, deleteDoc } from "firebase/firestore";
-import { onAuthStateChanged, User, Auth } from "firebase/auth";
+import type { collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy, deleteDoc } from "firebase/firestore";
+import type { onAuthStateChanged, User, Auth } from "firebase/auth";
 import { PlusCircle, MoreVertical, SquarePlus, FileText, Search, Calendar as CalendarIcon, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
-import { db, firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { creditCardSchema, statementSchema, type CreditCard, type Statement, paymentSchema, type Payment } from "@/lib/schemas";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,6 +73,9 @@ export default function CreditPage() {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [auth, setAuth] = useState<Auth | null>(null);
+  const [db, setDb] = useState<any>(null);
+  const [firebaseUtils, setFirebaseUtils] = useState<any>(null);
+
 
   const cardForm = useForm<CreditCard>({
     resolver: zodResolver(creditCardSchema),
@@ -103,13 +105,49 @@ export default function CreditPage() {
   });
 
     useEffect(() => {
-        initializeFirebase();
-        setAuth(firebaseAuth);
+        const initFirebase = async () => {
+          const { initializeFirebase, firebaseAuth } = await import("@/lib/firebase");
+          const { getFirestore, collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy, deleteDoc } = await import("firebase/firestore");
+          const { onAuthStateChanged } = await import("firebase/auth");
+          
+          initializeFirebase();
+          setAuth(firebaseAuth);
+          setDb(getFirestore());
+          setFirebaseUtils({
+              collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy, deleteDoc, onAuthStateChanged
+          });
+        }
+        initFirebase();
     }, []);
 
 
+    const fetchCreditCards = useCallback(async (uid: string) => {
+        if (!db || !firebaseUtils) return;
+        setLoading(true);
+        try {
+            const { collection, query, where, getDocs } = firebaseUtils;
+            const q = query(collection(db, "credit_cards"), where("userId", "==", uid));
+            const querySnapshot = await getDocs(q);
+            const cardsData = querySnapshot.docs.map((doc: any) => ({
+                id: doc.id,
+                ...doc.data(),
+            } as CreditCardWithId));
+            setCards(cardsData);
+        } catch (error) {
+            console.error("Error al obtener tarjetas de crédito: ", error);
+            toast({
+                title: "Error",
+                description: "No se pudieron obtener las tarjetas de crédito.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, [db, firebaseUtils, toast]);
+
     useEffect(() => {
-        if (!auth) return;
+        if (!auth || !firebaseUtils) return;
+        const { onAuthStateChanged } = firebaseUtils;
 
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
@@ -123,34 +161,11 @@ export default function CreditPage() {
         });
 
         return () => unsubscribe();
-    }, [auth]);
-
-  const fetchCreditCards = async (uid: string) => {
-    if (!db) return;
-    setLoading(true);
-    try {
-      const q = query(collection(db, "credit_cards"), where("userId", "==", uid));
-      const querySnapshot = await getDocs(q);
-      const cardsData = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      } as CreditCardWithId));
-      setCards(cardsData);
-    } catch (error) {
-      console.error("Error al obtener tarjetas de crédito: ", error);
-      toast({
-        title: "Error",
-        description: "No se pudieron obtener las tarjetas de crédito.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    }, [auth, firebaseUtils, fetchCreditCards]);
 
 
   async function onCardSubmit(data: CreditCard) {
-    if (!user || !db) {
+    if (!user || !db || !firebaseUtils) {
       toast({
         title: "Error",
         description: "Debes iniciar sesión para añadir una tarjeta.",
@@ -159,6 +174,7 @@ export default function CreditPage() {
       return;
     }
     try {
+      const { collection, addDoc } = firebaseUtils;
       const docRef = await addDoc(collection(db, "credit_cards"), {
         ...data,
         userId: user.uid,
@@ -180,7 +196,9 @@ export default function CreditPage() {
   }
 
   async function onPaymentSubmit(data: Payment) {
-    if (!user || !selectedCard || !db) return;
+    if (!user || !selectedCard || !db || !firebaseUtils) return;
+
+    const { writeBatch, doc, collection, Timestamp } = firebaseUtils;
 
     const paymentAmount = data.amount;
     const newDebt = selectedCard.currentDebt - paymentAmount;
@@ -217,7 +235,10 @@ export default function CreditPage() {
   }
 
   async function onStatementSubmit(data: Statement) {
-      if (!user || !selectedCard || !db) return;
+      if (!user || !selectedCard || !db || !firebaseUtils) return;
+
+      const { collection, addDoc, Timestamp } = firebaseUtils;
+
       try {
         await addDoc(collection(db, "statements"), {
             ...data,
@@ -239,7 +260,10 @@ export default function CreditPage() {
   }
 
   async function onStatementUpdate(data: Statement) {
-      if (!editingStatement || !db) return;
+      if (!editingStatement || !db || !firebaseUtils) return;
+
+      const { doc, updateDoc, Timestamp } = firebaseUtils;
+
       try {
           const statementRef = doc(db, "statements", editingStatement.id);
           await updateDoc(statementRef, {
@@ -264,8 +288,11 @@ export default function CreditPage() {
   }
 
   async function onViewStatements(card: CreditCardWithId) {
-    if (!user || !db) return;
+    if (!user || !db || !firebaseUtils) return;
     setSelectedCard(card);
+
+    const { collection, query, where, orderBy, getDocs, Timestamp } = firebaseUtils;
+
     try {
         const q = query(
             collection(db, "statements"), 
@@ -274,7 +301,7 @@ export default function CreditPage() {
             orderBy("month", "desc")
         );
         const querySnapshot = await getDocs(q);
-        const statementsData = querySnapshot.docs.map(doc => {
+        const statementsData = querySnapshot.docs.map((doc: any) => {
             const data = doc.data();
             const dueDate = data.dueDate instanceof Timestamp ? data.dueDate.toDate() : new Date();
             return {
@@ -301,11 +328,13 @@ export default function CreditPage() {
   }
 
   async function handleDeleteCard(cardId: string) {
-    if (!user || !db) return;
+    if (!user || !db || !firebaseUtils) return;
     if (!confirm("¿Estás seguro de que quieres eliminar esta tarjeta y todos sus estados de cuenta asociados? Esta acción no se puede deshacer.")) {
         return;
     }
 
+    const { doc, deleteDoc } = firebaseUtils;
+    
     try {
         await deleteDoc(doc(db, "credit_cards", cardId));
         toast({
@@ -787,7 +816,7 @@ export default function CreditPage() {
                               <PopoverContent className="w-auto p-0" align="start">
                                 <Calendar
                                   mode="single"
-                                  selected={field.value instanceof Timestamp ? field.value.toDate() : field.value}
+                                  selected={firebaseUtils?.Timestamp && field.value instanceof firebaseUtils.Timestamp ? field.value.toDate() : field.value}
                                   onSelect={field.onChange}
                                   initialFocus
                                 />
@@ -807,5 +836,3 @@ export default function CreditPage() {
     </>
   );
 }
-
-    
