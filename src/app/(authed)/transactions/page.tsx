@@ -77,23 +77,19 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (watchedCategory === 'Salario' || watchedCategory === 'Préstamo') {
       form.setValue('type', 'income');
-    } else if (form.getValues('type') === 'income' && !['Salario', 'Préstamo'].includes(watchedCategory)) {
+    } else if (form.getValues('type') === 'income' && watchedCategory && !['Salario', 'Préstamo'].includes(watchedCategory)) {
         form.setValue('type', 'expense');
     }
   }, [watchedCategory, form]);
   
-  const fetchTransactions = async (uid: string, filter: FilterType = filterType, specificDate: Date | undefined = date, range: DateRange | undefined = dateRange) => {
-    if (!user) {
-        setLoading(false);
-        return;
-    }
+  const fetchTransactions = async (uid: string) => {
     setLoading(true);
     try {
         let q;
         const baseQuery = collection(db, "transactions");
         let constraints = [where("userId", "==", uid)];
 
-        switch (filter) {
+        switch (filterType) {
             case "today":
                 constraints.push(where("date", ">=", Timestamp.fromDate(startOfDay(new Date()))));
                 constraints.push(where("date", "<=", Timestamp.fromDate(endOfDay(new Date()))));
@@ -103,27 +99,26 @@ export default function TransactionsPage() {
                 constraints.push(where("date", "<=", Timestamp.fromDate(endOfMonth(new Date()))));
                 break;
             case "date":
-                if (specificDate) {
-                    constraints.push(where("date", ">=", Timestamp.fromDate(startOfDay(specificDate))));
-                    constraints.push(where("date", "<=", Timestamp.fromDate(endOfDay(specificDate))));
+                if (date) {
+                    constraints.push(where("date", ">=", Timestamp.fromDate(startOfDay(date))));
+                    constraints.push(where("date", "<=", Timestamp.fromDate(endOfDay(date))));
                 }
                 break;
             case "range":
-                if (range?.from) {
-                     constraints.push(where("date", ">=", Timestamp.fromDate(startOfDay(range.from))));
+                if (dateRange?.from) {
+                     constraints.push(where("date", ">=", Timestamp.fromDate(startOfDay(dateRange.from))));
                 }
-                if (range?.to) {
-                     constraints.push(where("date", "<=", Timestamp.fromDate(endOfDay(range.to))));
+                if (dateRange?.to) {
+                     constraints.push(where("date", "<=", Timestamp.fromDate(endOfDay(dateRange.to))));
                 }
                 break;
             case "recent":
                  constraints.push(orderBy("date", "desc"));
                  constraints.push(limit(5));
-                 q = query(baseQuery, ...constraints);
                  break;
         }
 
-        if (filter !== "recent") {
+        if (filterType !== "recent") {
             constraints.push(orderBy("date", "desc"));
         }
         
@@ -155,7 +150,6 @@ export default function TransactionsPage() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        fetchTransactions(currentUser.uid, filterType, date, dateRange);
       } else {
         setUser(null);
         setTransactions([]);
@@ -163,7 +157,13 @@ export default function TransactionsPage() {
       }
     });
     return () => unsubscribe();
-  }, [auth, filterType, date, dateRange]);
+  }, [auth]);
+
+  useEffect(() => {
+    if (user) {
+        fetchTransactions(user.uid);
+    }
+  }, [user, filterType, date, dateRange]);
 
 
   async function onSubmit(data: FormValues) {
@@ -218,13 +218,28 @@ export default function TransactionsPage() {
         await batch.commit();
       }
       
-      await fetchTransactions(user.uid, filterType, date, dateRange);
+      await fetchTransactions(user.uid);
 
       toast({
         title: "Transacción Añadida",
-        description: `${data.description} por $${data.amount} ha sido registrada.`,
+        description: `${data.description} por $${data.amount.toLocaleString()} ha sido registrada.`,
       });
-      form.reset();
+      form.reset({
+        description: "",
+        amount: 0,
+        type: "expense",
+        date: new Date(),
+        category: undefined,
+        hasAdvance: false,
+        advanceAmount: 0,
+        loanDetails: {
+            loanId: '',
+            totalAmount: 0,
+            installments: 0,
+            frequency: 'monthly',
+            startDate: new Date(),
+        }
+      });
     } catch (error) {
       console.error("Error al añadir transacción: ", error);
        toast({
@@ -317,7 +332,7 @@ export default function TransactionsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Categoría</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecciona una categoría" />
@@ -596,7 +611,7 @@ export default function TransactionsPage() {
                             <div className="flex items-center justify-between gap-4">
                                 <div className="flex-1">
                                     <p className="text-xs text-muted-foreground">TIPO</p>
-                                    <p className="font-medium flex items-center">{tx.type === 'income' ? <ArrowUp className="mr-1 h-4 w-4 text-primary" /> : <ArrowDown className="mr-1 h-4 w-4 text-destructive" />} {tx.type === 'income' ? 'Ingreso' : 'Gasto'}</p>
+                                    <div className="font-medium flex items-center">{tx.type === 'income' ? <ArrowUp className="mr-1 h-4 w-4 text-primary" /> : <ArrowDown className="mr-1 h-4 w-4 text-destructive" />} {tx.type === 'income' ? 'Ingreso' : 'Gasto'}</div>
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-xs text-muted-foreground">CATEGORÍA</p>
