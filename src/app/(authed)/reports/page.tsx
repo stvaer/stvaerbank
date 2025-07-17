@@ -163,9 +163,9 @@ export default function ReportsPage() {
                 <Skeleton className="h-full w-full" />
              </div>
           ) : (
-            <div className="h-[350px]">
+            <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
                   <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />

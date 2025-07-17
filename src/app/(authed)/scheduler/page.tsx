@@ -157,8 +157,8 @@ export default function SchedulerPage() {
   const BillIcon = () => <Banknote className="h-3 w-3 text-white absolute bottom-1 right-1" />;
 
   return (
-    <div className="grid md:grid-cols-1 lg:grid-cols-5 gap-6 animate-fade-in">
-      <div className="lg:col-span-2 space-y-6">
+    <div className="flex flex-col lg:flex-row gap-6 animate-fade-in">
+      <div className="lg:w-2/5 space-y-6 flex-shrink-0">
         <Card>
           <CardHeader>
             <CardTitle>Programar una Factura</CardTitle>
@@ -242,7 +242,7 @@ export default function SchedulerPage() {
         </Card>
       </div>
 
-      <div className="lg:col-span-3">
+      <div className="flex-1 min-w-0">
         <Card>
           <CardHeader>
             <CardTitle>Calendario de Pagos</CardTitle>
