@@ -4,10 +4,11 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, addMonths, addDays } from "date-fns";
-import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp } from "lucide-react";
-import { collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { format, addMonths, addDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
+import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp, Search } from "lucide-react";
+import { collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc, limit } from "firebase/firestore";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { DateRange } from "react-day-picker";
 
 import { transactionSchema, type Transaction, type LoanDetails } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
@@ -37,12 +38,19 @@ type FormValues = Transaction & {
   loanDetails?: LoanDetails;
 }
 
+type FilterType = "recent" | "today" | "month" | "date" | "range";
+
+
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<(Transaction & {id: string})[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState<FilterType>("recent");
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
   const { toast } = useToast();
   const auth = getAuth(app);
-  const user = auth.currentUser;
+  const [user, setUser] = useState(auth.currentUser);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(transactionSchema),
@@ -69,47 +77,93 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (watchedCategory === 'Salario' || watchedCategory === 'Préstamo') {
       form.setValue('type', 'income');
-    } else {
+    } else if (form.getValues('type') === 'income' && !['Salario', 'Préstamo'].includes(watchedCategory)) {
         form.setValue('type', 'expense');
     }
   }, [watchedCategory, form]);
   
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      if (!user) {
+  const fetchTransactions = async (uid: string, filter: FilterType = filterType, specificDate: Date | undefined = date, range: DateRange | undefined = dateRange) => {
+    if (!user) {
         setLoading(false);
         return;
-      }
-      try {
-        const q = query(
-          collection(db, "transactions"), 
-          where("userId", "==", user.uid),
-          orderBy("date", "desc")
-        );
+    }
+    setLoading(true);
+    try {
+        let q;
+        const baseQuery = collection(db, "transactions");
+        let constraints = [where("userId", "==", uid)];
+
+        switch (filter) {
+            case "today":
+                constraints.push(where("date", ">=", Timestamp.fromDate(startOfDay(new Date()))));
+                constraints.push(where("date", "<=", Timestamp.fromDate(endOfDay(new Date()))));
+                break;
+            case "month":
+                constraints.push(where("date", ">=", Timestamp.fromDate(startOfMonth(new Date()))));
+                constraints.push(where("date", "<=", Timestamp.fromDate(endOfMonth(new Date()))));
+                break;
+            case "date":
+                if (specificDate) {
+                    constraints.push(where("date", ">=", Timestamp.fromDate(startOfDay(specificDate))));
+                    constraints.push(where("date", "<=", Timestamp.fromDate(endOfDay(specificDate))));
+                }
+                break;
+            case "range":
+                if (range?.from) {
+                     constraints.push(where("date", ">=", Timestamp.fromDate(startOfDay(range.from))));
+                }
+                if (range?.to) {
+                     constraints.push(where("date", "<=", Timestamp.fromDate(endOfDay(range.to))));
+                }
+                break;
+            case "recent":
+                 constraints.push(orderBy("date", "desc"));
+                 constraints.push(limit(5));
+                 q = query(baseQuery, ...constraints);
+                 break;
+        }
+
+        if (filter !== "recent") {
+            constraints.push(orderBy("date", "desc"));
+        }
+        
+        q = query(baseQuery, ...constraints);
         const querySnapshot = await getDocs(q);
         const transactionsData = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            ...data,
-            id: doc.id,
-            date: (data.date as Timestamp).toDate(),
-          } as Transaction & { id: string };
+            const data = doc.data();
+            return {
+                ...data,
+                id: doc.id,
+                date: (data.date as Timestamp).toDate(),
+            } as Transaction & { id: string };
         });
         setTransactions(transactionsData);
-      } catch (error) {
+    } catch (error) {
         console.error("Error al obtener transacciones: ", error);
         toast({
-          title: "Error",
-          description: "No se pudieron obtener las transacciones.",
-          variant: "destructive",
+            title: "Error",
+            description: "No se pudieron obtener las transacciones.",
+            variant: "destructive",
         });
-      } finally {
+    } finally {
+        setLoading(false);
+    }
+  };
+
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        fetchTransactions(currentUser.uid, filterType, date, dateRange);
+      } else {
+        setUser(null);
+        setTransactions([]);
         setLoading(false);
       }
-    };
-
-    fetchTransactions();
-  }, [toast, user]);
+    });
+    return () => unsubscribe();
+  }, [auth, filterType, date, dateRange]);
 
 
   async function onSubmit(data: FormValues) {
@@ -163,10 +217,8 @@ export default function TransactionsPage() {
         }
         await batch.commit();
       }
-
-      const newTransaction = { ...transactionData, id: docRef.id, date: data.date };
-      const newTransactions = [newTransaction, ...transactions].sort((a,b) => b.date.getTime() - a.date.getTime());
-      setTransactions(newTransactions as (Transaction & {id: string})[]);
+      
+      await fetchTransactions(user.uid, filterType, date, dateRange);
 
       toast({
         title: "Transacción Añadida",
@@ -180,6 +232,14 @@ export default function TransactionsPage() {
         description: "No se pudo añadir la transacción.",
         variant: "destructive",
       });
+    }
+  }
+  
+  const handleFilterChange = (newFilter: FilterType) => {
+    setFilterType(newFilter);
+    if (newFilter !== 'date' && newFilter !== 'range') {
+      setDate(undefined);
+      setDateRange(undefined);
     }
   }
 
@@ -441,10 +501,56 @@ export default function TransactionsPage() {
       <div className="flex-1">
         <Card>
           <CardHeader>
-            <CardTitle>Transacciones Recientes</CardTitle>
-            <CardDescription>Tus últimos movimientos financieros registrados.</CardDescription>
+            <CardTitle>Historial de Transacciones</CardTitle>
+            <CardDescription>Busca y filtra tus movimientos financieros.</CardDescription>
           </CardHeader>
           <CardContent>
+             <div className="flex flex-wrap items-center gap-2 mb-4 p-2 bg-muted/50 rounded-lg">
+                <Button variant={filterType === 'recent' ? 'default' : 'ghost'} onClick={() => handleFilterChange('recent')}>Recientes</Button>
+                <Button variant={filterType === 'today' ? 'default' : 'ghost'} onClick={() => handleFilterChange('today')}>Hoy</Button>
+                <Button variant={filterType === 'month' ? 'default' : 'ghost'} onClick={() => handleFilterChange('month')}>Este Mes</Button>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant={filterType === 'date' ? 'default' : 'ghost'}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {date ? format(date, "PPP") : "Fecha"}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                        <Calendar
+                            mode="single"
+                            selected={date}
+                            onSelect={(d) => { setDate(d); handleFilterChange('date'); }}
+                            initialFocus
+                        />
+                    </PopoverContent>
+                </Popover>
+                <Popover>
+                    <PopoverTrigger asChild>
+                       <Button variant={filterType === 'range' ? 'default' : 'ghost'}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                             {dateRange?.from ? (
+                                dateRange.to ? (
+                                  `${format(dateRange.from, "LLL dd")} - ${format(dateRange.to, "LLL dd, y")}`
+                                ) : (
+                                  format(dateRange.from, "LLL dd, y")
+                                )
+                              ) : (
+                                "Rango"
+                              )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={(range) => { setDateRange(range); handleFilterChange('range'); }}
+                            numberOfMonths={2}
+                        />
+                    </PopoverContent>
+                </Popover>
+             </div>
              <div className="space-y-4">
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
@@ -494,7 +600,7 @@ export default function TransactionsPage() {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-xs text-muted-foreground">CATEGORÍA</p>
-                                    <div className="font-medium"><Badge variant="outline">{tx.category}</Badge></div>
+                                    <div><Badge variant="outline">{tx.category}</Badge></div>
                                 </div>
                             </div>
                             <div>
@@ -508,7 +614,7 @@ export default function TransactionsPage() {
                     )
                   })
                 ) : (
-                  <p className="text-muted-foreground text-center py-8">No tienes transacciones recientes.</p>
+                  <p className="text-muted-foreground text-center py-8">No se encontraron transacciones para el filtro seleccionado.</p>
                 )}
              </div>
           </CardContent>
@@ -517,3 +623,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
