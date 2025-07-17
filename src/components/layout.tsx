@@ -4,9 +4,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { AreaChart, ArrowRightLeft, CalendarClock, CreditCard, LayoutDashboard, LogOut, Plus } from "lucide-react";
+import { AreaChart, ArrowRightLeft, CalendarClock, CreditCard, LayoutDashboard, LogOut, Plus, Bell, CircleDollarSign } from "lucide-react";
 import { getAuth, onAuthStateChanged, User, signOut } from "firebase/auth";
-import { app } from "@/lib/firebase";
+import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
+import { addDays, isAfter, isBefore, startOfToday } from "date-fns";
+
+import { app, db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 
 import {
@@ -24,6 +27,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "./ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -33,17 +38,27 @@ const navItems = [
   { href: "/reports", label: "Reportes", icon: AreaChart },
 ];
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
+interface Notification {
+  id: string;
+  name: string;
+  dueDate: Date;
+  type: 'bill' | 'statement';
+}
+
+export function AppLayout({ children }: { children: React.Node }) {
   const pathname = usePathname();
   const router = useRouter();
   const pageTitle = navItems.find(item => pathname.startsWith(item.href))?.label || "Dashboard";
   const [user, setUser] = useState<User | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
   const auth = getAuth(app);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
+        fetchNotifications(currentUser.uid);
       } else {
         router.push("/login");
       }
@@ -51,6 +66,54 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
     return () => unsubscribe();
   }, [auth, router]);
+  
+  const fetchNotifications = async (uid: string) => {
+    setLoadingNotifications(true);
+    const today = startOfToday();
+    const sevenDaysFromNow = addDays(today, 7);
+    let upcomingPayments: Notification[] = [];
+
+    try {
+        // Fetch upcoming bills
+        const billsQuery = query(
+            collection(db, "bills"),
+            where("userId", "==", uid),
+            where("dueDate", ">=", Timestamp.fromDate(today))
+        );
+        const billsSnapshot = await getDocs(billsQuery);
+        billsSnapshot.forEach(doc => {
+            const data = doc.data();
+            const dueDate = (data.dueDate as Timestamp).toDate();
+            if (isBefore(dueDate, sevenDaysFromNow)) {
+                upcomingPayments.push({ id: doc.id, name: data.name, dueDate, type: 'bill' });
+            }
+        });
+
+        // Fetch upcoming statements
+        const statementsQuery = query(
+            collection(db, "statements"),
+            where("userId", "==", uid),
+            where("dueDate", ">=", Timestamp.fromDate(today)),
+            where("isPaid", "==", false)
+        );
+        const statementsSnapshot = await getDocs(statementsQuery);
+        statementsSnapshot.forEach(doc => {
+            const data = doc.data();
+            const dueDate = (data.dueDate as Timestamp).toDate();
+            if (isBefore(dueDate, sevenDaysFromNow)) {
+                upcomingPayments.push({ id: doc.id, name: `Pago Tarjeta (Mes ${data.month})`, dueDate, type: 'statement' });
+            }
+        });
+
+        upcomingPayments.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+        setNotifications(upcomingPayments);
+
+    } catch (error) {
+        console.error("Error fetching notifications:", error);
+    } finally {
+        setLoadingNotifications(false);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -74,15 +137,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
             {navItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href}>
                   <SidebarMenuButton
-                    isActive={pathname === item.href}
+                    asChild
+                    isActive={pathname.startsWith(item.href)}
                     tooltip={{ children: item.label }}
                   >
+                    <Link href={item.href}>
                       <item.icon className="size-5" />
                       <span>{item.label}</span>
+                    </Link>
                   </SidebarMenuButton>
-                </Link>
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
@@ -111,12 +175,51 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
              <SidebarTrigger className="md:hidden" />
              <h2 className="text-lg font-semibold font-headline">{pageTitle}</h2>
           </div>
-          <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary/10 hover:text-primary sm:w-auto w-10 sm:px-4 p-0">
-             <Link href="/transactions">
-                <Plus className="sm:hidden" />
-                <span className="hidden sm:inline">Nueva Transacción</span>
-             </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {notifications.length > 0 && (
+                    <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-destructive border-2 border-background" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium leading-none">Notificaciones</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Tus próximos vencimientos.
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    {loadingNotifications ? (
+                      <p className="text-sm text-muted-foreground">Cargando...</p>
+                    ) : notifications.length > 0 ? (
+                      notifications.map(n => (
+                        <div key={n.id} className="grid grid-cols-[25px_1fr] items-start pb-4 last:mb-0 last:pb-0">
+                           <span className="flex h-2 w-2 translate-y-1 rounded-full bg-primary" />
+                           <div className="grid gap-1">
+                                <p className="text-sm font-medium leading-none truncate">{n.name}</p>
+                                <p className="text-sm text-muted-foreground">Vence el {n.dueDate.toLocaleDateString()}</p>
+                           </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No tienes notificaciones.</p>
+                    )}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary/10 hover:text-primary sm:w-auto w-10 sm:px-4 p-0">
+               <Link href="/transactions">
+                  <Plus className="sm:hidden" />
+                  <span className="hidden sm:inline">Nueva Transacción</span>
+               </Link>
+            </Button>
+          </div>
         </header>
         <main className="flex-1 p-4 sm:p-6 bg-background/95">
           {children}

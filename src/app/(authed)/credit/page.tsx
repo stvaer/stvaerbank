@@ -4,9 +4,10 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-import { PlusCircle, MoreVertical, SquarePlus, FileText } from "lucide-react";
+import { PlusCircle, MoreVertical, SquarePlus, FileText, Search, Calendar as CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 
 import { db, app } from "@/lib/firebase";
 import { creditCardSchema, statementSchema, type CreditCard, type Statement, paymentSchema, type Payment } from "@/lib/schemas";
@@ -45,18 +46,29 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 
 
 interface CreditCardWithId extends CreditCard {
   id: string;
 }
 
+interface StatementWithId extends Statement {
+    id: string;
+    dueDate: Date;
+}
+
 export default function CreditPage() {
   const [cards, setCards] = useState<CreditCardWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCard, setSelectedCard] = useState<CreditCardWithId | null>(null);
+  const [statements, setStatements] = useState<StatementWithId[]>([]);
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
   const [isStatementModalOpen, setStatementModalOpen] = useState(false);
+  const [isViewStatementsModalOpen, setViewStatementsModalOpen] = useState(false);
   const { toast } = useToast();
   const auth = getAuth(app);
   const user = auth.currentUser;
@@ -84,6 +96,7 @@ export default function CreditPage() {
         statementBalance: 0,
         minimumPayment: 0,
         paymentForNoInterest: 0,
+        dueDate: new Date(),
     }
   });
 
@@ -190,7 +203,8 @@ export default function CreditPage() {
             ...data,
             cardId: selectedCard.id,
             userId: user.uid,
-            isPaid: false
+            isPaid: false,
+            dueDate: Timestamp.fromDate(data.dueDate),
         });
         toast({
             title: "Estado de Cuenta Añadido",
@@ -202,6 +216,33 @@ export default function CreditPage() {
         console.error("Error al añadir estado de cuenta: ", error);
         toast({ title: "Error", description: "No se pudo añadir el estado de cuenta.", variant: "destructive" });
       }
+  }
+
+  async function onViewStatements(card: CreditCardWithId) {
+    if (!user) return;
+    setSelectedCard(card);
+    try {
+        const q = query(
+            collection(db, "statements"), 
+            where("userId", "==", user.uid),
+            where("cardId", "==", card.id),
+            orderBy("month", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        const statementsData = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                dueDate: (data.dueDate as Timestamp).toDate()
+            } as StatementWithId
+        });
+        setStatements(statementsData);
+        setViewStatementsModalOpen(true);
+    } catch (error) {
+       console.error("Error al obtener estados de cuenta: ", error);
+       toast({ title: "Error", description: "No se pudieron obtener los estados de cuenta.", variant: "destructive" });
+    }
   }
 
   const formatCurrency = (amount: number) =>
@@ -348,6 +389,9 @@ export default function CreditPage() {
                           <DropdownMenuItem onSelect={() => { setSelectedCard(card); setStatementModalOpen(true); }}>
                             Añadir Estado de Cuenta
                           </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => onViewStatements(card)}>
+                            <Search className="mr-2 h-4 w-4" /> Ver Estados de Cuenta
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive">Eliminar Tarjeta</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -482,11 +526,93 @@ export default function CreditPage() {
                             </FormItem>
                         )}
                     />
+                    <FormField
+                        control={statementForm.control}
+                        name="dueDate"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>Fecha Límite de Pago</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                      "pl-3 text-left font-normal",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {field.value ? (
+                                      format(field.value, "PPP")
+                                    ) : (
+                                      <span>Elige una fecha</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     <DialogFooter>
                         <Button type="submit">Guardar Estado de Cuenta</Button>
                     </DialogFooter>
                 </form>
             </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* View Statements Modal */}
+      <Dialog open={isViewStatementsModalOpen} onOpenChange={setViewStatementsModalOpen}>
+        <DialogContent className="max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>Estados de Cuenta de {selectedCard?.cardName}</DialogTitle>
+                <DialogDescription>
+                    Historial de estados de cuenta registrados para esta tarjeta.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto pr-4">
+                {statements.length > 0 ? (
+                    statements.map((statement, index) => (
+                        <div key={statement.id}>
+                            <div className="p-4 rounded-lg space-y-3">
+                                <p className="text-sm font-semibold">Mes: {statement.month}</p>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">SALDO TOTAL</p>
+                                        <p className="font-medium">{formatCurrency(statement.statementBalance)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">PAGO MÍNIMO</p>
+                                        <p className="font-medium">{formatCurrency(statement.minimumPayment)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">PAGO S/INTERÉS</p>
+                                        <p className="font-medium">{formatCurrency(statement.paymentForNoInterest)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">VENCIMIENTO</p>
+                                        <p className="font-medium">{format(statement.dueDate, "PPP")}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {index < statements.length - 1 && <Separator />}
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-muted-foreground text-center py-8">No hay estados de cuenta registrados.</p>
+                )}
+            </div>
         </DialogContent>
       </Dialog>
     </>

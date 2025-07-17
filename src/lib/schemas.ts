@@ -1,3 +1,4 @@
+
 import * as z from "zod";
 
 export const loanSchema = z.object({
@@ -77,6 +78,7 @@ export const statementSchema = z.object({
   statementBalance: z.coerce.number().min(0, "El saldo del estado de cuenta no puede ser negativo."),
   minimumPayment: z.coerce.number().min(0, "El pago mínimo no puede ser negativo."),
   paymentForNoInterest: z.coerce.number().min(0, "El pago para no generar intereses no puede ser negativo."),
+  dueDate: z.date({ required_error: "Se requiere una fecha de vencimiento." }),
   isPaid: z.boolean().default(false).optional(),
   userId: z.string().optional(),
 });
