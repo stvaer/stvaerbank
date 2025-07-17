@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { AreaChart, ArrowRightLeft, CalendarClock, LayoutDashboard, LogOut } from "lucide-react";
+import { AreaChart, ArrowRightLeft, CalendarClock, LayoutDashboard, LogOut, Plus } from "lucide-react";
 import { getAuth, onAuthStateChanged, User, signOut } from "firebase/auth";
 import { app } from "@/lib/firebase";
 import { useEffect, useState } from "react";
@@ -109,8 +109,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
              <SidebarTrigger className="md:hidden" />
              <h2 className="text-lg font-semibold font-headline">{pageTitle}</h2>
           </div>
-          <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary/10 hover:text-primary">
-            <Link href="/transactions">Nueva Transacción</Link>
+          <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary/10 hover:text-primary sm:w-auto w-10 sm:px-4 p-0">
+             <Link href="/transactions">
+                <Plus className="sm:hidden" />
+                <span className="hidden sm:inline">Nueva Transacción</span>
+             </Link>
           </Button>
         </header>
         <main className="flex-1 p-4 sm:p-6 bg-background/95">
