@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ResponsiveContainer, Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
 import { collection, getDocs, Timestamp, query, where } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
@@ -148,25 +149,27 @@ export default function DashboardPage() {
                 <Skeleton className="h-full w-full" />
              </div>
           ) : (
-            <ChartContainer config={chartConfig} className="h-[300px] w-full aspect-video">
-              <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} stroke="hsl(var(--muted-foreground))" />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tickFormatter={(value) => `$${value / 1000}k`}
-                  stroke="hsl(var(--muted-foreground))"
-                  domain={['dataMin - 1000', 'dataMax + 1000']}
-                />
-                <ChartTooltip
-                  cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 2, strokeDasharray: '3 3' }}
-                  content={<ChartTooltipContent indicator="line" />}
-                />
-                <Line dataKey="balance" type="monotone" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))', r: 4 }} />
-              </LineChart>
-            </ChartContainer>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    tickFormatter={(value) => `$${value / 1000}k`}
+                    stroke="hsl(var(--muted-foreground))"
+                    domain={['dataMin - 1000', 'dataMax + 1000']}
+                  />
+                  <ChartTooltip
+                    cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 2, strokeDasharray: '3 3' }}
+                    content={<ChartTooltipContent indicator="line" />}
+                  />
+                  <Line dataKey="balance" type="monotone" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))', r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </CardContent>
       </Card>
