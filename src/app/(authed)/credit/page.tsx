@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy, deleteDoc } from "firebase/firestore";
-import type { onAuthStateChanged, User, Auth } from "firebase/auth";
+import type { User, Auth } from "firebase/auth";
 import { PlusCircle, MoreVertical, SquarePlus, FileText, Search, Calendar as CalendarIcon, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -60,7 +60,13 @@ interface StatementWithId extends Statement {
     dueDate: Date;
 }
 
-export default function CreditPage() {
+interface CreditPageProps {
+  user: User | null;
+  db: any;
+  firebaseUtils: any;
+}
+
+export default function CreditPage({ user, db, firebaseUtils }: CreditPageProps) {
   const [cards, setCards] = useState<CreditCardWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCard, setSelectedCard] = useState<CreditCardWithId | null>(null);
@@ -71,10 +77,6 @@ export default function CreditPage() {
   const [isEditStatementModalOpen, setEditStatementModalOpen] = useState(false);
   const [editingStatement, setEditingStatement] = useState<StatementWithId | null>(null);
   const { toast } = useToast();
-  const [user, setUser] = useState<User | null>(null);
-  const [auth, setAuth] = useState<Auth | null>(null);
-  const [db, setDb] = useState<any>(null);
-  const [firebaseUtils, setFirebaseUtils] = useState<any>(null);
 
 
   const cardForm = useForm<CreditCard>({
@@ -104,23 +106,6 @@ export default function CreditPage() {
     }
   });
 
-    useEffect(() => {
-        const initFirebase = async () => {
-          const { initializeFirebase, firebaseAuth } = await import("@/lib/firebase");
-          const { getFirestore, collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy, deleteDoc } = await import("firebase/firestore");
-          const { onAuthStateChanged } = await import("firebase/auth");
-          
-          initializeFirebase();
-          setAuth(firebaseAuth);
-          setDb(getFirestore());
-          setFirebaseUtils({
-              collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy, deleteDoc, onAuthStateChanged
-          });
-        }
-        initFirebase();
-    }, []);
-
-
     const fetchCreditCards = useCallback(async (uid: string) => {
         if (!db || !firebaseUtils) return;
         setLoading(true);
@@ -146,22 +131,13 @@ export default function CreditPage() {
     }, [db, firebaseUtils, toast]);
 
     useEffect(() => {
-        if (!auth || !firebaseUtils) return;
-        const { onAuthStateChanged } = firebaseUtils;
-
-        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            if (currentUser) {
-                setUser(currentUser);
-                await fetchCreditCards(currentUser.uid);
-            } else {
-                setUser(null);
-                setCards([]);
-                setLoading(false);
-            }
-        });
-
-        return () => unsubscribe();
-    }, [auth, firebaseUtils, fetchCreditCards]);
+        if (user) {
+            fetchCreditCards(user.uid);
+        } else {
+            setLoading(false);
+            setCards([]);
+        }
+    }, [user, fetchCreditCards]);
 
 
   async function onCardSubmit(data: CreditCard) {
@@ -836,3 +812,5 @@ export default function CreditPage() {
     </>
   );
 }
+
+    

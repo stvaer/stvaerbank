@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { AreaChart, ArrowRightLeft, CalendarClock, CreditCard, LayoutDashboard, LogOut, Plus, Bell, CircleDollarSign } from "lucide-react";
 import { addDays, isBefore, startOfToday } from "date-fns";
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import type { User, Auth, Unsubscribe } from "firebase/auth";
 import type { Firestore, QuerySnapshot, DocumentData } from "firebase/firestore";
 
@@ -43,16 +43,21 @@ interface Notification {
   type: 'bill' | 'statement';
 }
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
+interface AppLayoutProps {
+    children: React.ReactNode;
+    user: User | null;
+    auth: Auth | null;
+    db: Firestore | null;
+    firebaseUtils: any;
+    firebaseReady: boolean;
+}
+
+export function AppLayout({ children, user, auth, db, firebaseUtils, firebaseReady }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const pageTitle = navItems.find(item => pathname.startsWith(item.href))?.label || "Dashboard";
-  const [user, setUser] = useState<User | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
-  const [auth, setAuth] = useState<Auth | null>(null);
-  const [db, setDb] = useState<Firestore | null>(null);
-  const [firebaseUtils, setFirebaseUtils] = useState<any>(null);
 
   const fetchNotifications = useCallback(async (uid: string) => {
     if (!db || !firebaseUtils) return;
@@ -104,34 +109,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }, [db, firebaseUtils]);
 
   useEffect(() => {
-    const initFirebase = async () => {
-      const { initializeFirebase, firebaseAuth } = await import("@/lib/firebase");
-      const { getFirestore, collection, getDocs, query, where, Timestamp } = await import("firebase/firestore");
-      const { onAuthStateChanged, signOut } = await import("firebase/auth");
-      
-      initializeFirebase();
-      setAuth(firebaseAuth);
-      setDb(getFirestore());
-      setFirebaseUtils({ collection, getDocs, query, where, Timestamp, onAuthStateChanged, signOut });
-    };
-    initFirebase();
-  }, []);
-
-  useEffect(() => {
-    if (!auth || !firebaseUtils) return;
-
-    const { onAuthStateChanged } = firebaseUtils;
-    const unsubscribe: Unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        fetchNotifications(currentUser.uid);
-      } else {
-        router.push("/login");
-      }
-    });
-
-    return () => unsubscribe();
-  }, [router, auth, firebaseUtils, fetchNotifications]);
+    if (firebaseReady) {
+        if (user) {
+            fetchNotifications(user.uid);
+        } else {
+            router.push("/login");
+        }
+    }
+  }, [firebaseReady, user, router, fetchNotifications]);
   
 
   const handleSignOut = async () => {
@@ -249,3 +234,5 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    

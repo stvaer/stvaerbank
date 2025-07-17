@@ -7,7 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer
 import { ArrowUpRight, ArrowDownLeft, Milestone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { collection, query, where, getDocs, Timestamp } from "firebase/firestore"
-import type { onAuthStateChanged, User, Auth } from "firebase/auth"
+import type { User } from "firebase/auth"
 import { Transaction } from "@/lib/schemas"
 import { subMonths, format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -19,7 +19,13 @@ interface MonthlyData {
   expenses: number;
 }
 
-export default function ReportsPage() {
+interface ReportsPageProps {
+  user: User | null;
+  db: any;
+  firebaseUtils: any;
+}
+
+export default function ReportsPage({ user, db, firebaseUtils }: ReportsPageProps) {
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState<MonthlyData[]>([]);
   const [summaryData, setSummaryData] = useState({
@@ -28,24 +34,6 @@ export default function ReportsPage() {
     netFlow: 0,
   });
 
-  const [user, setUser] = useState<User | null>(null);
-  const [auth, setAuth] = useState<Auth | null>(null);
-  const [db, setDb] = useState<any>(null);
-  const [firebaseUtils, setFirebaseUtils] = useState<any>(null);
-
-  useEffect(() => {
-    const initFirebase = async () => {
-      const { initializeFirebase, firebaseAuth } = await import("@/lib/firebase");
-      const { getFirestore, collection, query, where, getDocs, Timestamp } = await import("firebase/firestore");
-      const { onAuthStateChanged } = await import("firebase/auth");
-      
-      initializeFirebase();
-      setAuth(firebaseAuth);
-      setDb(getFirestore());
-      setFirebaseUtils({ collection, query, where, getDocs, Timestamp, onAuthStateChanged });
-    }
-    initFirebase();
-  }, []);
 
   const fetchReportData = useCallback(async (uid: string) => {
       if (!db || !firebaseUtils) return;
@@ -110,20 +98,14 @@ export default function ReportsPage() {
     }, [db, firebaseUtils]);
     
   useEffect(() => {
-    if (!auth || !firebaseUtils) return;
-    const { onAuthStateChanged } = firebaseUtils;
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-        if (currentUser) {
-            setUser(currentUser);
-            fetchReportData(currentUser.uid);
-        } else {
-            setUser(null);
-            setLoading(false);
-        }
-    });
-    return () => unsubscribe();
-  }, [auth, firebaseUtils, fetchReportData]);
+    if (user) {
+        fetchReportData(user.uid);
+    } else {
+        setLoading(false);
+        setChartData([]);
+        setSummaryData({ totalIncome: 0, totalExpenses: 0, netFlow: 0 });
+    }
+  }, [user, fetchReportData]);
 
 
   return (
@@ -216,3 +198,5 @@ export default function ReportsPage() {
     </div>
   )
 }
+
+    

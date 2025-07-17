@@ -6,35 +6,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
 import type { collection, getDocs, Timestamp, query, where } from "firebase/firestore";
-import type { onAuthStateChanged, User, Auth } from "firebase/auth";
+import type { User } from "firebase/auth";
 import { Transaction } from "@/lib/schemas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { subMonths, format, startOfMonth, endOfMonth } from 'date-fns';
 
-export default function DashboardPage() {
+interface DashboardPageProps {
+  user: User | null;
+  db: any;
+  firebaseUtils: any;
+}
+
+export default function DashboardPage({ user, db, firebaseUtils }: DashboardPageProps) {
   const [balances, setBalances] = useState<Array<{ name: string; value: number; icon: React.ElementType; color: string }>>([]);
   const [chartData, setChartData] = useState<Array<{ month: string; balance: number }>>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [auth, setAuth] = useState<Auth | null>(null);
-  const [db, setDb] = useState<any>(null);
-  const [firebaseUtils, setFirebaseUtils] = useState<any>(null);
-
-  useEffect(() => {
-    const initFirebase = async () => {
-      const { initializeFirebase, firebaseAuth } = await import("@/lib/firebase");
-      const { getFirestore, collection, getDocs, Timestamp, query, where } = await import("firebase/firestore");
-      const { onAuthStateChanged } = await import("firebase/auth");
-      
-      initializeFirebase();
-      setAuth(firebaseAuth);
-      setDb(getFirestore());
-      setFirebaseUtils({
-        collection, getDocs, Timestamp, query, where, onAuthStateChanged
-      });
-    }
-    initFirebase();
-  }, []);
 
   const fetchData = useCallback(async (uid: string) => {
       if (!db || !firebaseUtils) return;
@@ -106,21 +92,14 @@ export default function DashboardPage() {
     }, [db, firebaseUtils]);
 
   useEffect(() => {
-    if (!auth || !firebaseUtils) return;
-
-    const { onAuthStateChanged } = firebaseUtils;
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-        if(currentUser) {
-            setUser(currentUser);
-            await fetchData(currentUser.uid);
-        } else {
-            setUser(null);
-            setLoading(false);
-        }
-    });
-
-    return () => unsubscribe();
-  }, [auth, firebaseUtils, fetchData]);
+    if (user) {
+      fetchData(user.uid);
+    } else {
+      setLoading(false);
+      setBalances([]);
+      setChartData([]);
+    }
+  }, [user, fetchData]);
 
 
   return (
@@ -200,3 +179,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

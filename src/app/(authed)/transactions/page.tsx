@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, addDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp, Search } from "lucide-react";
 import type { collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc, limit } from "firebase/firestore";
-import type { onAuthStateChanged, User, Auth } from "firebase/auth";
+import type { User } from "firebase/auth";
 import { DateRange } from "react-day-picker";
 
 import { transactionSchema, type Transaction, type LoanDetails } from "@/lib/schemas";
@@ -39,19 +39,20 @@ type FormValues = Transaction & {
 
 type FilterType = "recent" | "today" | "month" | "date" | "range";
 
+interface TransactionsPageProps {
+  user: User | null;
+  db: any;
+  firebaseUtils: any;
+}
 
-export default function TransactionsPage() {
+
+export default function TransactionsPage({ user, db, firebaseUtils }: TransactionsPageProps) {
   const [transactions, setTransactions] = useState<(Transaction & {id: string})[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<FilterType>("recent");
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-
   const { toast } = useToast();
-  const [user, setUser] = useState<User | null>(null);
-  const [auth, setAuth] = useState<Auth | null>(null);
-  const [db, setDb] = useState<any>(null);
-  const [firebaseUtils, setFirebaseUtils] = useState<any>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(transactionSchema),
@@ -76,20 +77,6 @@ export default function TransactionsPage() {
   const watchedHasAdvance = form.watch("hasAdvance");
 
   
-  useEffect(() => {
-    const initFirebase = async () => {
-        const { initializeFirebase, firebaseAuth } = await import("@/lib/firebase");
-        const { getFirestore, collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc, limit } = await import("firebase/firestore");
-        const { onAuthStateChanged } = await import("firebase/auth");
-        
-        initializeFirebase();
-        setAuth(firebaseAuth);
-        setDb(getFirestore());
-        setFirebaseUtils({ collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc, limit, onAuthStateChanged });
-    };
-    initFirebase();
-  }, []);
-
   const fetchTransactions = useCallback(async (uid: string) => {
     if (!db || !firebaseUtils) return;
     setLoading(true);
@@ -158,23 +145,11 @@ export default function TransactionsPage() {
   }, [filterType, date, dateRange, toast, db, firebaseUtils]);
 
   useEffect(() => {
-    if (!auth || !firebaseUtils) return;
-    const { onAuthStateChanged } = firebaseUtils;
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-      } else {
-        setUser(null);
-        setTransactions([]);
-        setLoading(false);
-      }
-    });
-    return () => unsubscribe();
-  }, [auth, firebaseUtils]);
-
-  useEffect(() => {
     if (user) {
         fetchTransactions(user.uid);
+    } else {
+        setTransactions([]);
+        setLoading(false);
     }
   }, [user, fetchTransactions]);
 
@@ -668,3 +643,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    

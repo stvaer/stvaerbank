@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon, PlusCircle, Trash2, Banknote } from "lucide-react"
 import type { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp, where } from "firebase/firestore";
-import type { onAuthStateChanged, User, Auth } from "firebase/auth";
+import type { User } from "firebase/auth";
 
 import { billSchema, type Bill } from "@/lib/schemas"
 import { cn } from "@/lib/utils"
@@ -25,15 +25,17 @@ interface BillWithId extends Bill {
     id: string;
 }
 
-export default function SchedulerPage() {
+interface SchedulerPageProps {
+  user: User | null;
+  db: any;
+  firebaseUtils: any;
+}
+
+export default function SchedulerPage({ user, db, firebaseUtils }: SchedulerPageProps) {
   const [bills, setBills] = useState<BillWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const [billDates, setBillDates] = useState<Date[]>([]);
   const { toast } = useToast();
-  const [user, setUser] = useState<User | null>(null);
-  const [auth, setAuth] = useState<Auth | null>(null);
-  const [db, setDb] = useState<any>(null);
-  const [firebaseUtils, setFirebaseUtils] = useState<any>(null);
 
   const form = useForm<Bill>({
     resolver: zodResolver(billSchema),
@@ -43,20 +45,6 @@ export default function SchedulerPage() {
       dueDate: undefined,
     },
   });
-
-  useEffect(() => {
-    const initFirebase = async () => {
-      const { initializeFirebase, firebaseAuth } = await import("@/lib/firebase");
-      const { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp, where } = await import("firebase/firestore");
-      const { onAuthStateChanged } = await import("firebase/auth");
-
-      initializeFirebase();
-      setAuth(firebaseAuth);
-      setDb(getFirestore());
-      setFirebaseUtils({ collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp, where, onAuthStateChanged });
-    }
-    initFirebase();
-  }, []);
 
   const fetchBills = useCallback(async (uid: string) => {
         if (!db || !firebaseUtils) return;
@@ -94,21 +82,13 @@ export default function SchedulerPage() {
     }, [db, firebaseUtils, toast]);
 
   useEffect(() => {
-    if (!auth || !firebaseUtils) return;
-    const { onAuthStateChanged } = firebaseUtils;
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-        if (currentUser) {
-            setUser(currentUser);
-            fetchBills(currentUser.uid);
-        } else {
-            setUser(null);
-            setBills([]);
-            setLoading(false);
-        }
-    });
-    return () => unsubscribe();
-  }, [auth, firebaseUtils, fetchBills]);
+    if (user) {
+        fetchBills(user.uid);
+    } else {
+        setBills([]);
+        setLoading(false);
+    }
+  }, [user, fetchBills]);
 
   async function onSubmit(data: Bill) {
     if (!user || !db || !firebaseUtils) {
@@ -349,3 +329,5 @@ export default function SchedulerPage() {
     </div>
   )
 }
+
+    
