@@ -164,7 +164,7 @@ export default function LoginPage() {
                   <input
                     key={index}
                     ref={(el) => {
-                      inputRefs.current[index] = el;
+                      if (el) inputRefs.current[index] = el;
                     }}
                     type="password"
                     maxLength={1}
