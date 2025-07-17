@@ -9,7 +9,7 @@ import { onAuthStateChanged, User, Auth } from "firebase/auth";
 import { PlusCircle, MoreVertical, SquarePlus, FileText, Search, Calendar as CalendarIcon, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
-import { db, auth as firebaseAuth, initializeFirebase } from "@/lib/firebase";
+import { db, firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { creditCardSchema, statementSchema, type CreditCard, type Statement, paymentSchema, type Payment } from "@/lib/schemas";
 import { Button } from "@/components/ui/button";
 import {

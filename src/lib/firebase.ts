@@ -7,7 +7,7 @@ import { firebaseConfig } from "./firebase-config";
 
 // Initialize Firebase for client-side and export instances
 let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
+let firebaseAuth: Auth | null = null;
 let db: Firestore | null = null;
 
 function initializeFirebase() {
@@ -17,9 +17,9 @@ function initializeFirebase() {
         } else {
             app = getApp();
         }
-        auth = getAuth(app);
+        firebaseAuth = getAuth(app);
         db = getFirestore(app);
     }
 }
 
-export { app, db, auth, initializeFirebase };
+export { app, db, firebaseAuth, initializeFirebase };

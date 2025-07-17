@@ -11,7 +11,7 @@ import { onAuthStateChanged, User, Auth } from "firebase/auth";
 
 import { billSchema, type Bill } from "@/lib/schemas"
 import { cn } from "@/lib/utils"
-import { db, auth as firebaseAuth, initializeFirebase } from "@/lib/firebase";
+import { db, firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"

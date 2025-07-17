@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { initializeFirebase, auth as firebaseAuth } from "@/lib/firebase";
+import { initializeFirebase, firebaseAuth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
@@ -16,12 +16,14 @@ export default function LoginPage() {
   const [pin, setPin] = useState<string[]>(Array(6).fill(""));
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const gridSpotlightRef = useRef<HTMLDivElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     initializeFirebase();
+    setIsFirebaseReady(true); // Assume ready after initialization call
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isModalOpen && gridSpotlightRef.current) {
@@ -75,7 +77,7 @@ export default function LoginPage() {
   };
 
   const handleLogin = async () => {
-    if (!firebaseAuth) {
+    if (!isFirebaseReady || !firebaseAuth) {
         setErrorMessage("Firebase no está listo. Inténtalo de nuevo.");
         setError(true);
         return;
@@ -190,9 +192,10 @@ export default function LoginPage() {
                 </button>
                 <button
                   onClick={handleLogin}
-                  className="terminal-button w-1/2 py-3 text-sm"
+                  disabled={!isFirebaseReady}
+                  className="terminal-button w-1/2 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  INICIAR
+                  {isFirebaseReady ? 'INICIAR' : 'CARGANDO...'}
                 </button>
               </div>
             </div>

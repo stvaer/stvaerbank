@@ -12,7 +12,7 @@ import { DateRange } from "react-day-picker";
 
 import { transactionSchema, type Transaction, type LoanDetails } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
-import { db, auth as firebaseAuth, initializeFirebase } from "@/lib/firebase";
+import { db, firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

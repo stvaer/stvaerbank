@@ -9,7 +9,7 @@ import { onAuthStateChanged, User, signOut, Auth } from "firebase/auth";
 import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { addDays, isBefore, startOfToday } from "date-fns";
 
-import { db, auth as firebaseAuth, initializeFirebase } from "@/lib/firebase";
+import { db, firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 
 import {

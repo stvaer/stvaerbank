@@ -7,7 +7,7 @@ import { ResponsiveContainer, Line, LineChart, CartesianGrid, XAxis, YAxis, Tool
 import { DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
 import { collection, getDocs, Timestamp, query, where } from "firebase/firestore";
 import { onAuthStateChanged, User, Auth } from "firebase/auth";
-import { db, auth as firebaseAuth, initializeFirebase } from "@/lib/firebase";
+import { db, firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { Transaction } from "@/lib/schemas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { subMonths, format, startOfMonth, endOfMonth } from 'date-fns';

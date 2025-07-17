@@ -8,7 +8,7 @@ import { ArrowUpRight, ArrowDownLeft, Milestone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { collection, query, where, getDocs, Timestamp } from "firebase/firestore"
 import { onAuthStateChanged, User, Auth } from "firebase/auth"
-import { db, auth as firebaseAuth, initializeFirebase } from "@/lib/firebase";
+import { db, firebaseAuth, initializeFirebase } from "@/lib/firebase";
 import { Transaction } from "@/lib/schemas"
 import { subMonths, format } from 'date-fns'
 import { es } from 'date-fns/locale'
