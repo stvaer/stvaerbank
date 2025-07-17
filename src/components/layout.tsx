@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { AreaChart, ArrowRightLeft, CalendarClock, CreditCard, LayoutDashboard, LogOut, Plus, Bell, CircleDollarSign } from "lucide-react";
 import { addDays, isBefore, startOfToday } from "date-fns";
 import React, { useEffect, useState, useCallback } from "react";
-import type { DocumentData } from "firebase/firestore";
+import type { DocumentData, Timestamp } from "firebase/firestore";
 
 import {
   SidebarProvider,
@@ -50,7 +50,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, db, firebaseUtils, auth, firebaseReady } = useFirebase();
+  const { user, db, firebaseUtils, auth } = useFirebase();
   const pageTitle = navItems.find(item => pathname.startsWith(item.href))?.label || "Dashboard";
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
@@ -68,30 +68,28 @@ export function AppLayout({ children }: AppLayoutProps) {
         const billsQuery = query(
             collection(db, "bills"),
             where("userId", "==", uid),
-            where("dueDate", ">=", Timestamp.fromDate(today))
+            where("dueDate", ">=", Timestamp.fromDate(today)),
+            where("dueDate", "<=", Timestamp.fromDate(sevenDaysFromNow))
         );
         const billsSnapshot = await getDocs(billsQuery);
         billsSnapshot.forEach((doc: DocumentData) => {
             const data = doc.data();
-            const dueDate = (data.dueDate as any).toDate();
-            if (isBefore(dueDate, sevenDaysFromNow)) {
-                upcomingPayments.push({ id: doc.id, name: data.name, dueDate, type: 'bill' });
-            }
+            const dueDate = (data.dueDate as Timestamp).toDate();
+            upcomingPayments.push({ id: doc.id, name: data.name, dueDate, type: 'bill' });
         });
 
         const statementsQuery = query(
             collection(db, "statements"),
             where("userId", "==", uid),
+            where("isPaid", "==", false),
             where("dueDate", ">=", Timestamp.fromDate(today)),
-            where("isPaid", "==", false)
+            where("dueDate", "<=", Timestamp.fromDate(sevenDaysFromNow))
         );
         const statementsSnapshot = await getDocs(statementsQuery);
         statementsSnapshot.forEach((doc: DocumentData) => {
             const data = doc.data();
-            const dueDate = (data.dueDate as any).toDate();
-            if (isBefore(dueDate, sevenDaysFromNow)) {
-                upcomingPayments.push({ id: doc.id, name: `Pago Tarjeta (Mes ${data.month})`, dueDate, type: 'statement' });
-            }
+            const dueDate = (data.dueDate as Timestamp).toDate();
+            upcomingPayments.push({ id: doc.id, name: `Pago Tarjeta (Mes ${data.month})`, dueDate, type: 'statement' });
         });
 
         upcomingPayments.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
@@ -105,14 +103,13 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [db, firebaseUtils]);
 
   useEffect(() => {
-    if (firebaseReady) {
-        if (user) {
-            fetchNotifications(user.uid);
-        } else {
-            router.push("/login");
-        }
+    if (user) {
+        fetchNotifications(user.uid);
+    } else {
+        setNotifications([]);
+        setLoadingNotifications(false);
     }
-  }, [firebaseReady, user, router, fetchNotifications]);
+  }, [user, fetchNotifications]);
   
 
   const handleSignOut = async () => {
