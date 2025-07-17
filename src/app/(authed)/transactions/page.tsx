@@ -124,10 +124,16 @@ export default function TransactionsPage() {
         const querySnapshot = await getDocs(q);
         const transactionsData = querySnapshot.docs.map((doc: any) => {
             const data = doc.data();
+            const loanDetails = data.loanDetails && data.loanDetails.startDate ? {
+                ...data.loanDetails,
+                startDate: (data.loanDetails.startDate as Timestamp).toDate(),
+            } : undefined;
+
             return {
                 ...data,
                 id: doc.id,
                 date: (data.date as Timestamp).toDate(),
+                loanDetails,
             } as TransactionWithId;
         });
         setTransactions(transactionsData);
@@ -182,8 +188,11 @@ export default function TransactionsPage() {
       advanceAmount: data.advanceAmount,
     };
     
-    if (data.category === 'Préstamo') {
-        transactionData.loanDetails = data.loanDetails;
+    if (data.category === 'Préstamo' && data.loanDetails) {
+        transactionData.loanDetails = {
+            ...data.loanDetails,
+            startDate: Timestamp.fromDate(data.loanDetails.startDate)
+        } as any;
     }
 
     try {
@@ -217,8 +226,8 @@ export default function TransactionsPage() {
         await batch.commit();
       }
       
-      const newTransaction = { ...transactionData, id: docRef.id, date: transactionData.date };
-      setTransactions(prev => [newTransaction, ...prev].sort((a,b) => b.date.getTime() - a.date.getTime()));
+      const newTransaction = { ...transactionData, id: docRef.id, date: transactionData.date, loanDetails: data.loanDetails };
+      setTransactions(prev => [newTransaction as TransactionWithId, ...prev].sort((a,b) => b.date.getTime() - a.date.getTime()));
 
       toast({
         title: "Transacción Añadida",
@@ -255,10 +264,20 @@ export default function TransactionsPage() {
 
     const { doc, updateDoc, Timestamp } = firebaseUtils;
 
+    const transactionData: Partial<FormValues> = { ...data };
+
     try {
       const transactionRef = doc(db, "transactions", editingTransaction.id);
+      
+      if (transactionData.loanDetails && transactionData.loanDetails.startDate) {
+        transactionData.loanDetails = {
+            ...transactionData.loanDetails,
+            startDate: Timestamp.fromDate(transactionData.loanDetails.startDate) as any,
+        }
+      }
+      
       await updateDoc(transactionRef, {
-        ...data,
+        ...transactionData,
         date: Timestamp.fromDate(data.date),
       });
 
@@ -292,6 +311,10 @@ export default function TransactionsPage() {
     form.reset({
       ...transaction,
       date: transaction.date,
+      loanDetails: transaction.loanDetails ? {
+          ...transaction.loanDetails,
+          startDate: transaction.loanDetails.startDate,
+      } : undefined
     });
     setEditModalOpen(true);
   }
@@ -776,6 +799,80 @@ export default function TransactionsPage() {
                       </FormItem>
                     )}
                   />
+                    {watchedCategory === 'Préstamo' && (
+                    <Card className="p-4 bg-muted/30">
+                      <CardTitle className="text-lg mb-4">Detalles del Préstamo</CardTitle>
+                      <div className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="loanDetails.loanId"
+                          render={({ field }) => (
+                            <FormItem><FormLabel>ID del Préstamo</FormLabel><FormControl><Input placeholder="ej. PREST-001" {...field} /></FormControl><FormMessage /></FormItem>
+                          )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="loanDetails.totalAmount"
+                            render={({ field }) => (
+                              <FormItem><FormLabel>Monto Total del Préstamo</FormLabel><FormControl><Input type="number" placeholder="5000.00" {...field} onChange={(e) => {
+                                  const value = parseFloat(e.target.value) || 0;
+                                  field.onChange(value);
+                                  form.setValue('amount', value);
+                              }} /></FormControl><FormMessage /></FormItem>
+                            )}
+                          />
+                        <FormField
+                          control={form.control}
+                          name="loanDetails.installments"
+                          render={({ field }) => (
+                            <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="loanDetails.frequency"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Frecuencia de Pago</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger><SelectValue placeholder="Seleccionar frecuencia" /></SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="monthly">Mensual</SelectItem>
+                                  <SelectItem value="bi-weekly">Quincenal</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="loanDetails.startDate"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-col">
+                                <FormLabel>Fecha de Inicio de Pago</FormLabel>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <FormControl>
+                                      <Button variant={"outline"} className={cn("pl-3 text-left font-normal",!field.value && "text-muted-foreground")}>
+                                        {field.value ? format(field.value, "PPP") : <span>Elige una fecha</span>}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                      </Button>
+                                    </FormControl>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                                  </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                      </div>
+                    </Card>
+                  )}
                   <FormField
                     control={form.control}
                     name="date"
