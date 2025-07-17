@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { AreaChart, ArrowRightLeft, CalendarClock, CreditCard, LayoutDashboard, LogOut, Plus, Bell, CircleDollarSign } from "lucide-react";
-import { getAuth, onAuthStateChanged, User, signOut } from "firebase/auth";
+import { onAuthStateChanged, User, signOut } from "firebase/auth";
 import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { addDays, isAfter, isBefore, startOfToday } from "date-fns";
 

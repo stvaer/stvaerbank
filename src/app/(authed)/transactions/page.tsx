@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, addDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp, Search } from "lucide-react";
 import { collection, addDoc, getDocs, Timestamp, query, orderBy, where, writeBatch, doc, limit } from "firebase/firestore";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { DateRange } from "react-day-picker";
 
 import { transactionSchema, type Transaction, type LoanDetails } from "@/lib/schemas";
@@ -49,7 +49,7 @@ export default function TransactionsPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const { toast } = useToast();
-  const [user, setUser] = useState(auth.currentUser);
+  const [user, setUser] = useState<User | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(transactionSchema),
@@ -219,6 +219,7 @@ export default function TransactionsPage() {
         await batch.commit();
       }
       
+      // Manually update the state instead of re-fetching
       const newTransaction = { ...transactionData, id: docRef.id, date: transactionData.date };
       setTransactions(prev => [newTransaction, ...prev].sort((a,b) => b.date.getTime() - a.date.getTime()));
 

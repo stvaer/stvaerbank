@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon, PlusCircle, Trash2, Banknote } from "lucide-react"
 import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, Timestamp, where } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 
 import { billSchema, type Bill } from "@/lib/schemas"
 import { cn } from "@/lib/utils"
@@ -31,7 +31,7 @@ export default function SchedulerPage() {
   const [loading, setLoading] = useState(true);
   const [billDates, setBillDates] = useState<Date[]>([]);
   const { toast } = useToast();
-  const user = auth.currentUser;
+  const [user, setUser] = useState<User | null>(null);
 
   const form = useForm<Bill>({
     resolver: zodResolver(billSchema),
@@ -43,15 +43,25 @@ export default function SchedulerPage() {
   });
 
   useEffect(() => {
-    const fetchBills = async () => {
-        if (!user) {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        if (currentUser) {
+            setUser(currentUser);
+            fetchBills(currentUser.uid);
+        } else {
+            setUser(null);
+            setBills([]);
             setLoading(false);
-            return;
         }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const fetchBills = async (uid: string) => {
+        setLoading(true);
         try {
             const q = query(
                 collection(db, "bills"), 
-                where("userId", "==", user.uid),
+                where("userId", "==", uid),
                 orderBy("dueDate", "asc")
             );
             const querySnapshot = await getDocs(q);
@@ -77,8 +87,6 @@ export default function SchedulerPage() {
         }
     };
 
-    fetchBills();
-  }, [toast, user]);
 
   async function onSubmit(data: Bill) {
     if (!user) {

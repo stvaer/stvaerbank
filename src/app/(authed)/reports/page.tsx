@@ -7,7 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer
 import { ArrowUpRight, ArrowDownLeft, Milestone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { collection, query, where, getDocs, Timestamp } from "firebase/firestore"
-import { getAuth } from "firebase/auth"
+import { onAuthStateChanged, User } from "firebase/auth"
 import { db, auth } from "@/lib/firebase"
 import { Transaction } from "@/lib/schemas"
 import { subMonths, startOfMonth, endOfMonth, format } from 'date-fns'
@@ -29,19 +29,28 @@ export default function ReportsPage() {
     netFlow: 0,
   });
 
-  const user = auth.currentUser;
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const fetchReportData = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        if (currentUser) {
+            setUser(currentUser);
+            fetchReportData(currentUser.uid);
+        } else {
+            setUser(null);
+            setLoading(false);
+        }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const fetchReportData = async (uid: string) => {
+      setLoading(true);
       try {
         const sixMonthsAgo = subMonths(new Date(), 6);
         const q = query(
           collection(db, "transactions"),
-          where("userId", "==", user.uid),
+          where("userId", "==", uid),
           where("date", ">=", Timestamp.fromDate(sixMonthsAgo))
         );
         const querySnapshot = await getDocs(q);
@@ -92,9 +101,6 @@ export default function ReportsPage() {
         setLoading(false);
       }
     };
-
-    fetchReportData();
-  }, [user]);
 
   return (
     <div className="space-y-6 animate-fade-in">

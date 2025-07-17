@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp, orderBy, deleteDoc } from "firebase/firestore";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { PlusCircle, MoreVertical, SquarePlus, FileText, Search, Calendar as CalendarIcon, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -72,7 +72,7 @@ export default function CreditPage() {
   const [isEditStatementModalOpen, setEditStatementModalOpen] = useState(false);
   const [editingStatement, setEditingStatement] = useState<StatementWithId | null>(null);
   const { toast } = useToast();
-  const [user, setUser] = useState(auth.currentUser);
+  const [user, setUser] = useState<User | null>(null);
 
   const cardForm = useForm<CreditCard>({
     resolver: zodResolver(creditCardSchema),

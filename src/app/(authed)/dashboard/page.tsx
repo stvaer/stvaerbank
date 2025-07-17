@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
 import { collection, getDocs, Timestamp, query, where } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { db, auth } from "@/lib/firebase";
 import { Transaction } from "@/lib/schemas";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,17 +16,27 @@ export default function DashboardPage() {
   const [balances, setBalances] = useState<Array<{ name: string; value: number; icon: React.ElementType; color: string }>>([]);
   const [chartData, setChartData] = useState<Array<{ month: string; balance: number }>>([]);
   const [loading, setLoading] = useState(true);
-  const user = auth.currentUser;
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+        if(currentUser) {
+            setUser(currentUser);
+            await fetchData(currentUser.uid);
+        } else {
+            setUser(null);
+            setLoading(false);
+        }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const fetchData = async (uid: string) => {
+      setLoading(true);
       try {
-        const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
-        const creditCardsQuery = query(collection(db, "credit_cards"), where("userId", "==", user.uid));
+        const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", uid));
+        const creditCardsQuery = query(collection(db, "credit_cards"), where("userId", "==", uid));
 
         const [transactionsSnapshot, creditCardsSnapshot] = await Promise.all([
           getDocs(transactionsQuery),
@@ -88,17 +98,6 @@ export default function DashboardPage() {
         setLoading(false);
       }
     };
-
-    const unsubscribe = auth.onAuthStateChanged(authUser => {
-        if(authUser) {
-            fetchData();
-        } else {
-            setLoading(false);
-        }
-    });
-     // No need to unsubscribe in this model, but good practice.
-    // return () => unsubscribe();
-  }, [user]);
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
