@@ -99,7 +99,7 @@ export default function DashboardPage() {
     });
 
     return () => unsubscribe();
-  }, [auth]);
+  }, [user]);
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
@@ -149,7 +149,7 @@ export default function DashboardPage() {
              </div>
           ) : (
             <ChartContainer config={chartConfig} className="h-[300px] w-full aspect-video">
-              <LineChart accessibilityLayer data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} stroke="hsl(var(--muted-foreground))" />
                 <YAxis
