@@ -272,8 +272,8 @@ export default function TransactionsPage() {
       if (transactionData.loanDetails && transactionData.loanDetails.startDate) {
         transactionData.loanDetails = {
             ...transactionData.loanDetails,
-            startDate: Timestamp.fromDate(transactionData.loanDetails.startDate) as any,
-        }
+            startDate: Timestamp.fromDate(transactionData.loanDetails.startDate),
+        } as any;
       }
       
       await updateDoc(transactionRef, {
@@ -308,12 +308,15 @@ export default function TransactionsPage() {
   
   function handleEditClick(transaction: TransactionWithId) {
     setEditingTransaction(transaction);
+    const startDate = transaction.loanDetails?.startDate;
+    const isDate = startDate instanceof Date && !isNaN(startDate.valueOf());
+    
     form.reset({
       ...transaction,
       date: transaction.date,
       loanDetails: transaction.loanDetails ? {
           ...transaction.loanDetails,
-          startDate: transaction.loanDetails.startDate,
+          startDate: isDate ? startDate : new Date(),
       } : undefined
     });
     setEditModalOpen(true);
@@ -698,7 +701,7 @@ export default function TransactionsPage() {
                                 </div>
                                )}
                                {tx.category === 'Préstamo' && tx.loanDetails && (
-                                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-dashed">
+                                <div className="grid grid-cols-3 gap-2 pt-2 mt-2 border-t border-dashed">
                                     <div>
                                         <p className="text-xs text-muted-foreground">ID PRÉSTAMO</p>
                                         <p className="font-medium text-xs truncate">{tx.loanDetails.loanId}</p>
@@ -933,3 +936,4 @@ export default function TransactionsPage() {
     </>
   );
 }
+
