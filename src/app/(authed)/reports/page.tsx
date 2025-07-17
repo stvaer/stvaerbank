@@ -60,7 +60,7 @@ export default function ReportsPage() {
           monthlyDataMap[monthKey] = { income: 0, expenses: 0 };
         }
         
-        transactions.forEach(t => {
+        transactions.forEach((t: Transaction) => {
           const monthKey = format(t.date, 'yyyy-MM');
           if (monthlyDataMap[monthKey]) {
             if (t.type === 'income') {
