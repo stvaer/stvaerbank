@@ -51,6 +51,7 @@ export default function SchedulerPage() {
             const q = query(
                 collection(db, "bills"), 
                 where("userId", "==", uid),
+                where("isPaid", "==", false),
                 orderBy("dueDate", "asc")
             );
             const querySnapshot = await getDocs(q);
@@ -101,6 +102,7 @@ export default function SchedulerPage() {
         const docRef = await addDoc(collection(db, "bills"), {
             ...data,
             userId: user.uid,
+            isPaid: false,
             dueDate: Timestamp.fromDate(data.dueDate),
         });
         const newBill: BillWithId = { ...data, id: docRef.id };

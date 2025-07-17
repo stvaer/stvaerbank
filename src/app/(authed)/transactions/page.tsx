@@ -9,7 +9,7 @@ import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp, Pencil } from
 import type { Timestamp } from "firebase/firestore";
 import { DateRange } from "react-day-picker";
 
-import { transactionSchema, type Transaction, type LoanDetails } from "@/lib/schemas";
+import { transactionSchema, type Transaction, type LoanDetails, type LoanPaymentDetails, type Bill } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -36,9 +36,11 @@ import { useFirebase } from "@/hooks/use-firebase";
 
 type FormValues = Transaction & {
   loanDetails?: LoanDetails;
+  loanPaymentDetails?: LoanPaymentDetails;
 }
 
 type TransactionWithId = Transaction & { id: string };
+type BillWithId = Bill & { id: string };
 
 type FilterType = "recent" | "today" | "month" | "date" | "range";
 
@@ -52,6 +54,10 @@ export default function TransactionsPage() {
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithId | null>(null);
   const { toast } = useToast();
+
+  const [activeLoans, setActiveLoans] = useState<TransactionWithId[]>([]);
+  const [selectedLoanBills, setSelectedLoanBills] = useState<BillWithId[]>([]);
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(transactionSchema),
@@ -68,6 +74,11 @@ export default function TransactionsPage() {
         installmentAmounts: [],
         frequency: 'monthly',
         startDate: new Date(),
+      },
+      loanPaymentDetails: {
+        loanTransactionId: '',
+        billId: '',
+        installmentNumber: 0,
       }
     },
   });
@@ -81,6 +92,7 @@ export default function TransactionsPage() {
   const watchedHasAdvance = form.watch("hasAdvance");
   const watchedInstallments = form.watch("loanDetails.installments");
   const watchedInstallmentAmounts = form.watch("loanDetails.installmentAmounts");
+  const watchedLoanPaymentId = form.watch("loanPaymentDetails.loanTransactionId");
 
   useEffect(() => {
     if (watchedCategory === 'Préstamo' && watchedInstallmentAmounts) {
@@ -103,9 +115,63 @@ export default function TransactionsPage() {
             }
         }
     } else {
-        remove(); // Remove all installment amount fields if category is not Préstamo
+        remove();
     }
   }, [watchedInstallments, watchedCategory, fields.length, append, remove]);
+
+  const fetchActiveLoans = useCallback(async (uid: string) => {
+    if (!db || !firebaseUtils) return;
+    const { collection, query, where, getDocs } = firebaseUtils;
+    try {
+        const q = query(
+            collection(db, "transactions"), 
+            where("userId", "==", uid),
+            where("category", "==", "Préstamo")
+        );
+        const querySnapshot = await getDocs(q);
+        const loans = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as TransactionWithId);
+        setActiveLoans(loans);
+    } catch (error) {
+        console.error("Error fetching active loans:", error);
+    }
+  }, [db, firebaseUtils]);
+
+  useEffect(() => {
+    if (user && watchedCategory === 'Pago de Préstamo') {
+        fetchActiveLoans(user.uid);
+    }
+  }, [user, watchedCategory, fetchActiveLoans]);
+
+  const fetchUnpaidBillsForLoan = useCallback(async (loanTransactionId: string) => {
+    if (!db || !firebaseUtils || !user) return;
+    const loan = activeLoans.find(l => l.id === loanTransactionId);
+    if (!loan || !loan.loanDetails) return;
+
+    const { collection, query, where, getDocs, orderBy } = firebaseUtils;
+    try {
+        const q = query(
+            collection(db, "bills"),
+            where("userId", "==", user.uid),
+            where("loanId", "==", loan.loanDetails.loanId),
+            where("isPaid", "==", false),
+            orderBy("dueDate", "asc")
+        );
+        const querySnapshot = await getDocs(q);
+        const bills = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, dueDate: (doc.data().dueDate as Timestamp).toDate() }) as BillWithId);
+        setSelectedLoanBills(bills);
+    } catch (error) {
+        console.error("Error fetching unpaid bills:", error);
+    }
+  }, [db, firebaseUtils, user, activeLoans]);
+  
+  useEffect(() => {
+    if (watchedLoanPaymentId) {
+        fetchUnpaidBillsForLoan(watchedLoanPaymentId);
+    } else {
+        setSelectedLoanBills([]);
+    }
+  }, [watchedLoanPaymentId, fetchUnpaidBillsForLoan]);
+
 
   
   const fetchTransactions = useCallback(async (uid: string) => {
@@ -194,6 +260,9 @@ export default function TransactionsPage() {
     if (watchedCategory !== 'Préstamo') {
       form.setValue('loanDetails', undefined);
     }
+    if (watchedCategory !== 'Pago de Préstamo') {
+      form.setValue('loanPaymentDetails', undefined);
+    }
   }, [watchedCategory, form]);
 
 
@@ -208,6 +277,7 @@ export default function TransactionsPage() {
     }
     
     const { collection, addDoc, Timestamp, writeBatch, doc } = firebaseUtils;
+    const batch = writeBatch(db);
     
     const transactionData: Omit<Transaction, 'id'> = {
       description: data.description,
@@ -226,57 +296,60 @@ export default function TransactionsPage() {
             startDate: Timestamp.fromDate(data.loanDetails.startDate)
         } as any;
     }
+    if (data.category === 'Pago de Préstamo' && data.loanPaymentDetails) {
+        transactionData.loanPaymentDetails = data.loanPaymentDetails;
+    }
 
     try {
-      const docRef = await addDoc(collection(db, "transactions"), {
+      const transactionRef = doc(collection(db, "transactions"));
+      batch.set(transactionRef, {
         ...transactionData,
         date: Timestamp.fromDate(transactionData.date)
       });
       
       if (data.category === 'Préstamo' && data.loanDetails && data.loanDetails.installmentAmounts) {
         const { loanId, installments, frequency, startDate, installmentAmounts } = data.loanDetails;
-        
-        const batch = writeBatch(db);
-
         let currentDueDate: Date = new Date(startDate);
-
         for (let i = 0; i < installments; i++) {
-          let dueDate: Date;
-
-          if (i === 0) {
-              dueDate = currentDueDate;
-          } else {
+          let dueDate: Date = currentDueDate;
+          if (i > 0) {
               if (frequency === 'monthly') {
-                  currentDueDate = addMonths(currentDueDate, 1);
-              } else { // bi-weekly logic
+                  dueDate = addMonths(currentDueDate, 1);
+              } else {
                    const lastPaymentDay = currentDueDate.getDate();
                    if (lastPaymentDay <= 15) {
-                       currentDueDate = setDate(currentDueDate, lastDayOfMonth(currentDueDate).getDate());
+                       dueDate = setDate(currentDueDate, lastDayOfMonth(currentDueDate).getDate());
                    } else {
-                       currentDueDate = setDate(addMonths(currentDueDate, 1), 15);
+                       dueDate = setDate(addMonths(currentDueDate, 1), 15);
                    }
               }
-              dueDate = currentDueDate;
           }
-
+          currentDueDate = dueDate;
           const billData = {
             name: `Cuota ${i + 1}/${installments} - Préstamo ${loanId}`,
             amount: installmentAmounts[i],
             dueDate: Timestamp.fromDate(dueDate),
             userId: user.uid,
+            isPaid: false,
+            loanId: loanId,
+            installmentNumber: i + 1,
           };
           const billRef = doc(collection(db, "bills"));
           batch.set(billRef, billData);
         }
-        await batch.commit();
+      } else if (data.category === 'Pago de Préstamo' && data.loanPaymentDetails) {
+        const billRef = doc(db, "bills", data.loanPaymentDetails.billId);
+        batch.update(billRef, { isPaid: true });
       }
       
-      const newTransaction = { ...transactionData, id: docRef.id, date: transactionData.date, loanDetails: data.loanDetails };
+      await batch.commit();
+      
+      const newTransaction = { ...transactionData, id: transactionRef.id, date: transactionData.date, loanDetails: data.loanDetails };
       setTransactions(prev => [newTransaction as TransactionWithId, ...prev].sort((a,b) => b.date.getTime() - a.date.getTime()));
 
       toast({
         title: "Transacción Añadida",
-        description: `${data.description} por $${data.amount.toLocaleString()} ha sido registrada.`,
+        description: `La transacción ha sido registrada.`,
       });
       form.reset({
         description: "",
@@ -292,6 +365,11 @@ export default function TransactionsPage() {
             installmentAmounts: [],
             frequency: 'monthly',
             startDate: new Date(),
+        },
+        loanPaymentDetails: {
+          loanTransactionId: '',
+          billId: '',
+          installmentNumber: 0,
         }
       });
     } catch (error) {
@@ -362,6 +440,7 @@ export default function TransactionsPage() {
       loanDetails: transaction.loanDetails ? {
           ...transaction.loanDetails,
           startDate: isDate ? startDate : new Date(),
+          installmentAmounts: transaction.loanDetails.installmentAmounts || []
       } : {
         loanId: '',
         installments: 1,
@@ -385,63 +464,7 @@ export default function TransactionsPage() {
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Descripción</FormLabel>
-                        <FormControl>
-                          <Input placeholder="ej. Café" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monto</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} disabled={watchedCategory === 'Préstamo'} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel>Tipo</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            value={field.value}
-                            className="flex space-x-4"
-                          >
-                            <FormItem className="flex items-center space-x-2 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="income" />
-                              </FormControl>
-                              <FormLabel className="font-normal">Ingreso</FormLabel>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-2 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="expense" />
-                              </FormControl>
-                              <FormLabel className="font-normal">Gasto</FormLabel>
-                            </FormItem>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
+                   <FormField
                     control={form.control}
                     name="category"
                     render={({ field }) => (
@@ -449,9 +472,9 @@ export default function TransactionsPage() {
                         <FormLabel>Categoría</FormLabel>
                         <Select onValueChange={(value) => {
                             field.onChange(value);
-                            if (value !== 'Préstamo') {
-                              form.setValue('loanDetails', undefined, { shouldValidate: true });
-                            }
+                            form.setValue('type', value === 'Salario' ? 'income' : 'expense');
+                            if (value !== 'Préstamo') form.setValue('loanDetails', undefined, { shouldValidate: true });
+                            if (value !== 'Pago de Préstamo') form.setValue('loanPaymentDetails', undefined, { shouldValidate: true });
                         }} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
@@ -459,13 +482,14 @@ export default function TransactionsPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                            <SelectItem value="Salario">Salario</SelectItem>
+                            <SelectItem value="Side Hustle">Extra</SelectItem>
                             <SelectItem value="Food">Comida</SelectItem>
                             <SelectItem value="Transport">Transporte</SelectItem>
                             <SelectItem value="Housing">Vivienda</SelectItem>
                             <SelectItem value="Entertainment">Entretenimiento</SelectItem>
-                            <SelectItem value="Salario">Salario</SelectItem>
-                            <SelectItem value="Préstamo">Préstamo</SelectItem>
-                            <SelectItem value="Side Hustle">Extra</SelectItem>
+                            <SelectItem value="Préstamo">Nuevo Préstamo</SelectItem>
+                            <SelectItem value="Pago de Préstamo">Pago de Préstamo</SelectItem>
                             <SelectItem value="Other">Otro</SelectItem>
                           </SelectContent>
                         </Select>
@@ -473,6 +497,99 @@ export default function TransactionsPage() {
                       </FormItem>
                     )}
                   />
+
+                  {watchedCategory !== 'Pago de Préstamo' && (
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Descripción</FormLabel>
+                          <FormControl>
+                            <Input placeholder="ej. Café" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {watchedCategory !== 'Pago de Préstamo' && (
+                    <FormField
+                      control={form.control}
+                      name="amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Monto</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} disabled={watchedCategory === 'Préstamo'} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {watchedCategory === 'Pago de Préstamo' && (
+                    <>
+                      <FormField
+                          control={form.control}
+                          name="loanPaymentDetails.loanTransactionId"
+                          render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Préstamo</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl>
+                                          <SelectTrigger>
+                                              <SelectValue placeholder="Selecciona un préstamo a pagar" />
+                                          </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                          {activeLoans.map(loan => (
+                                              <SelectItem key={loan.id} value={loan.id}>{loan.loanDetails?.loanId} - {loan.description}</SelectItem>
+                                          ))}
+                                      </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                      <FormField
+                          control={form.control}
+                          name="loanPaymentDetails.billId"
+                          render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Cuota a Pagar</FormLabel>
+                                  <Select onValueChange={(value) => {
+                                      const bill = selectedLoanBills.find(b => b.id === value);
+                                      if (bill) {
+                                          field.onChange(value);
+                                          form.setValue('amount', bill.amount);
+                                          form.setValue('description', `Pago cuota #${bill.installmentNumber} de préstamo ${activeLoans.find(l=>l.id === watchedLoanPaymentId)?.loanDetails?.loanId}`);
+                                          if (bill.installmentNumber) {
+                                            form.setValue('loanPaymentDetails.installmentNumber', bill.installmentNumber);
+                                          }
+                                      }
+                                  }} value={field.value} disabled={!watchedLoanPaymentId || selectedLoanBills.length === 0}>
+                                      <FormControl>
+                                          <SelectTrigger>
+                                              <SelectValue placeholder="Selecciona una cuota" />
+                                          </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                          {selectedLoanBills.map(bill => (
+                                              <SelectItem key={bill.id} value={bill.id}>
+                                                  Cuota #{bill.installmentNumber} - ${bill.amount.toFixed(2)} - Vence: {format(bill.dueDate, "PPP")}
+                                              </SelectItem>
+                                          ))}
+                                      </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                    </>
+                  )}
                   
                   {watchedCategory === 'Salario' && (
                     <>
@@ -872,7 +989,8 @@ export default function TransactionsPage() {
                               <SelectItem value="Housing">Vivienda</SelectItem>
                               <SelectItem value="Entertainment">Entretenimiento</SelectItem>
                               <SelectItem value="Salario">Salario</SelectItem>
-                              <SelectItem value="Préstamo">Préstamo</SelectItem>
+                              <SelectItem value="Préstamo">Nuevo Préstamo</SelectItem>
+                              <SelectItem value="Pago de Préstamo">Pago de Préstamo</SelectItem>
                               <SelectItem value="Side Hustle">Extra</SelectItem>
                               <SelectItem value="Other">Otro</SelectItem>
                             </SelectContent>

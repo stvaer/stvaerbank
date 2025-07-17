@@ -4,12 +4,20 @@ import * as z from "zod";
 export const loanSchema = z.object({
   loanId: z.string().min(1, "Se requiere un ID para el préstamo."),
   installments: z.coerce.number().int().min(1, "Debe haber al menos una cuota.").max(24, "El máximo es 24 cuotas."),
-  installmentAmounts: z.array(z.coerce.number().positive("Cada cuota debe ser un número positivo.")).optional(),
+  installmentAmounts: z.array(z.coerce.number().positive("Cada cuota debe ser un número positivo.")),
   frequency: z.enum(["monthly", "bi-weekly"], { required_error: "Debes seleccionar una frecuencia." }),
   startDate: z.date({ required_error: "Se requiere una fecha de inicio de pago." }),
 });
 
 export type LoanDetails = z.infer<typeof loanSchema>;
+
+export const loanPaymentDetailsSchema = z.object({
+  loanTransactionId: z.string(),
+  billId: z.string(),
+  installmentNumber: z.number(),
+});
+
+export type LoanPaymentDetails = z.infer<typeof loanPaymentDetailsSchema>;
 
 export const transactionSchema = z.object({
   description: z.string().min(2, { message: "La descripción debe tener al menos 2 caracteres." }),
@@ -22,6 +30,7 @@ export const transactionSchema = z.object({
   hasAdvance: z.boolean().optional(),
   advanceAmount: z.coerce.number().optional(),
   loanDetails: loanSchema.optional(),
+  loanPaymentDetails: loanPaymentDetailsSchema.optional(),
 }).refine(data => {
     if (data.hasAdvance) {
         return data.advanceAmount !== undefined && data.advanceAmount > 0;
@@ -60,7 +69,10 @@ export const billSchema = z.object({
   name: z.string().min(2, { message: "Se requiere el nombre de la factura." }),
   amount: z.coerce.number().positive({ message: "El monto debe ser positivo." }),
   dueDate: z.date({ required_error: "Se requiere una fecha de vencimiento." }),
-  userId: z.string().optional(), // Added for security rules
+  userId: z.string().optional(),
+  isPaid: z.boolean().default(false).optional(),
+  loanId: z.string().optional(),
+  installmentNumber: z.number().optional(),
 });
 
 export type Bill = z.infer<typeof billSchema>;
