@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
 import type { Timestamp } from "firebase/firestore";
-import { Transaction } from "@/lib/schemas";
+import { Transaction, type CreditCard as CreditCardType } from "@/lib/schemas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { subMonths, format, startOfMonth, endOfMonth } from 'date-fns';
 import { useFirebase } from "@/hooks/use-firebase";
@@ -38,14 +38,14 @@ export default function DashboardPage() {
           } as Transaction;
         });
 
-        const creditCardsData = creditCardsSnapshot.docs.map((doc: any) => doc.data());
+        const creditCardsData: CreditCardType[] = creditCardsSnapshot.docs.map((doc: any) => doc.data());
         
         const totalIncome = transactionsData.filter((t: Transaction) => t.type === 'income').reduce((acc: number, t: Transaction) => acc + t.amount, 0);
         const totalExpense = transactionsData.filter((t: Transaction) => t.type === 'expense').reduce((acc: number, t: Transaction) => acc + t.amount, 0);
         const totalBalance = totalIncome - totalExpense;
         const checkingAccount = totalBalance * 0.4;
         const savingsAccount = totalBalance * 0.6;
-        const totalCreditCardDebt = creditCardsData.reduce((acc: number, card) => acc + card.currentDebt, 0);
+        const totalCreditCardDebt = creditCardsData.reduce((acc: number, card: CreditCardType) => acc + card.currentDebt, 0);
 
         setBalances([
           { name: "Balance Total", value: totalBalance, icon: DollarSign, color: "text-primary" },
@@ -174,3 +174,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
