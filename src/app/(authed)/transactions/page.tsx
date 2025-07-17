@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, setDate, lastDayOfMonth } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp, Pencil } from "lucide-react";
@@ -83,11 +83,6 @@ export default function TransactionsPage() {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "loanDetails.installmentAmounts"
-  });
-
   const watchedCategory = form.watch("category");
   const watchedHasAdvance = form.watch("hasAdvance");
   const watchedInstallments = form.watch("loanDetails.installments");
@@ -100,25 +95,6 @@ export default function TransactionsPage() {
       form.setValue('amount', total);
     }
   }, [watchedInstallmentAmounts, watchedCategory, form]);
-
-  useEffect(() => {
-    const numInstallments = Number(watchedInstallments) || 0;
-    const currentFields = fields.length;
-    
-    if (watchedCategory === 'Préstamo') {
-        if (numInstallments > currentFields) {
-            for (let i = currentFields; i < numInstallments; i++) {
-                append(0);
-            }
-        } else if (numInstallments < currentFields) {
-            for (let i = currentFields - 1; i >= numInstallments; i--) {
-                remove(i);
-            }
-        }
-    } else {
-        remove();
-    }
-  }, [watchedInstallments, watchedCategory, fields.length, append, remove]);
 
 
   const fetchActiveLoans = useCallback(async (uid: string) => {
@@ -323,16 +299,12 @@ export default function TransactionsPage() {
               } else { // bi-weekly
                   const lastPaymentDay = currentDueDate.getDate();
                    if (lastPaymentDay <= 15) {
-                       dueDate = setDate(addMonths(currentDueDate, 0), 15);
+                       dueDate = setDate(currentDueDate, 15);
+                       if(dueDate <= currentDueDate) {
+                           dueDate = setDate(currentDueDate, lastDayOfMonth(currentDueDate).getDate());
+                       }
                    } else {
-                       dueDate = setDate(addMonths(currentDueDate, 0), lastDayOfMonth(currentDueDate).getDate());
-                   }
-                   if(dueDate <= currentDueDate) {
-                      if (lastPaymentDay <= 15) {
-                         dueDate = setDate(addMonths(currentDueDate, 0), lastDayOfMonth(currentDueDate).getDate());
-                      } else {
-                         dueDate = setDate(addMonths(currentDueDate, 1), 15);
-                      }
+                       dueDate = setDate(addMonths(currentDueDate, 1), 15);
                    }
               }
           }
@@ -663,9 +635,9 @@ export default function TransactionsPage() {
                             <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} /></FormControl><FormMessage /></FormItem>
                           )}
                         />
-                        {fields.map((item, index) => (
+                        {Array.from({ length: watchedInstallments || 0 }).map((_, index) => (
                            <FormField
-                            key={item.id}
+                            key={index}
                             control={form.control}
                             name={`loanDetails.installmentAmounts.${index}`}
                             render={({ field }) => (
@@ -1031,9 +1003,9 @@ export default function TransactionsPage() {
                                 <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} /></FormControl><FormMessage /></FormItem>
                             )}
                             />
-                            {fields.map((item, index) => (
+                            {Array.from({ length: watchedInstallments || 0 }).map((_, index) => (
                                 <FormField
-                                    key={item.id}
+                                    key={index}
                                     control={form.control}
                                     name={`loanDetails.installmentAmounts.${index}`}
                                     render={({ field }) => (
