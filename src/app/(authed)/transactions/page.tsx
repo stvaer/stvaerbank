@@ -652,7 +652,7 @@ export default function TransactionsPage() {
                       return (
                          <div key={tx.id}>
                           <div className="p-4 rounded-lg relative group">
-                            <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleEditClick(tx)}>
+                            <Button variant="ghost" size="icon" className="absolute bottom-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleEditClick(tx)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <div className="flex justify-between items-start mb-2">
