@@ -19,15 +19,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useToast } from "@/hooks/use-toast"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator"
 
 interface BillWithId extends Bill {
     id: string;
@@ -186,7 +179,7 @@ export default function SchedulerPage() {
                     <FormItem>
                       <FormLabel>Monto</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="0.00" {...field} />
+                        <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -240,8 +233,8 @@ export default function SchedulerPage() {
           </CardContent>
         </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <Card className="lg:col-span-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-1">
             <CardHeader>
                 <CardTitle>Calendario de Pagos</CardTitle>
                 <CardDescription>Una vista general de tus próximas facturas.</CardDescription>
@@ -273,42 +266,47 @@ export default function SchedulerPage() {
                 <CardDescription>Tus pagos más cercanos.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="relative overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Factura</TableHead>
-                          <TableHead>Vence</TableHead>
-                          <TableHead className="text-right">Monto</TableHead>
-                          <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {loading ? (
-                          Array.from({ length: 3 }).map((_, i) => (
-                            <TableRow key={i}>
-                              <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                              <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                              <TableCell className="text-right"><Skeleton className="h-5 w-12 ml-auto" /></TableCell>
-                              <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          bills.map((bill) => (
-                            <TableRow key={bill.id}>
-                              <TableCell className="font-medium truncate max-w-28">{bill.name}</TableCell>
-                              <TableCell>{format(bill.dueDate, "PPP")}</TableCell>
-                              <TableCell className="text-right">${bill.amount.toFixed(2)}</TableCell>
-                              <TableCell className="text-right">
-                               <Button variant="ghost" size="icon" onClick={() => removeBill(bill.id)}>
-                                 <Trash2 className="h-4 w-4 text-destructive" />
-                               </Button>
-                            </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
+                <div className="space-y-4">
+                    {loading ? (
+                      Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="p-4 rounded-lg border">
+                          <Skeleton className="h-4 w-20 mb-4" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-4 w-1/2" />
+                            <Skeleton className="h-4 w-1/3" />
+                          </div>
+                        </div>
+                      ))
+                    ) : bills.length > 0 ? (
+                      bills.map((bill, index) => (
+                        <div key={bill.id}>
+                          <div className="p-4 rounded-lg relative">
+                            <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => removeBill(bill.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                            <p className="text-xs font-mono text-muted-foreground mb-2">ID#{bill.id.substring(0, 5).toUpperCase()}</p>
+                            <div className="space-y-1">
+                                <div>
+                                    <p className="text-xs text-muted-foreground">FACTURA</p>
+                                    <p className="font-medium truncate">{bill.name}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">VENCE</p>
+                                    <p className="font-medium">{format(bill.dueDate, "PPP")}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">MONTO</p>
+                                    <p className="font-semibold text-primary">${bill.amount.toFixed(2)}</p>
+                                </div>
+                            </div>
+                          </div>
+                          {index < bills.length - 1 && <Separator />}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground text-center py-8">No tienes facturas próximas.</p>
+                    )}
                 </div>
             </CardContent>
         </Card>
