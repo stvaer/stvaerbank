@@ -2,10 +2,9 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { AreaChart, ArrowRightLeft, CalendarClock, CreditCard, LayoutDashboard, LogOut, Plus, Bell, CircleDollarSign } from "lucide-react";
-import { addDays, isBefore, startOfToday } from "date-fns";
+import { AreaChart, ArrowRightLeft, CalendarClock, CreditCard, LayoutDashboard, LogOut, Plus, Bell, Wallet } from "lucide-react";
+import { addDays, startOfToday } from "date-fns";
 import React, { useEffect, useState, useCallback } from "react";
 import type { DocumentData, Timestamp } from "firebase/firestore";
 
@@ -25,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "./ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
 import { useFirebase } from "@/hooks/use-firebase";
 
 const navItems = [
@@ -128,7 +126,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <Sidebar>
         <SidebarHeader>
           <Link href="/dashboard" className="flex items-center gap-2">
-            <Image src="/stvisotip.svg" alt="STVAERBank Isotype" width={32} height={32} />
+            <Wallet className="size-8 text-primary" />
             <span className="text-xl font-semibold font-headline">STVAERBank</span>
           </Link>
         </SidebarHeader>
