@@ -86,15 +86,7 @@ export default function TransactionsPage() {
   const watchedCategory = form.watch("category");
   const watchedHasAdvance = form.watch("hasAdvance");
   const watchedInstallments = form.watch("loanDetails.installments");
-  const watchedInstallmentAmounts = form.watch("loanDetails.installmentAmounts");
   const watchedLoanPaymentId = form.watch("loanPaymentDetails.loanTransactionId");
-
-  useEffect(() => {
-    if (watchedCategory === 'Préstamo' && watchedInstallmentAmounts) {
-      const total = watchedInstallmentAmounts.reduce((sum, item) => sum + (Number(item) || 0), 0);
-      form.setValue('amount', total);
-    }
-  }, [watchedInstallmentAmounts, watchedCategory, form]);
 
 
   const fetchActiveLoans = useCallback(async (uid: string) => {
@@ -312,7 +304,7 @@ export default function TransactionsPage() {
 
           const billData = {
             name: `Cuota ${i + 1}/${installments} - Préstamo ${loanId}`,
-            amount: installmentAmounts[i],
+            amount: installmentAmounts[i] || 0,
             dueDate: Timestamp.fromDate(dueDate),
             userId: user.uid,
             isPaid: false,
@@ -458,7 +450,7 @@ export default function TransactionsPage() {
                         <FormLabel>Categoría</FormLabel>
                         <Select onValueChange={(value) => {
                             field.onChange(value);
-                            form.setValue('type', value === 'Salario' ? 'income' : 'expense');
+                            form.setValue('type', value === 'Salario' || value === 'Préstamo' ? 'income' : 'expense');
                             if (value !== 'Préstamo') form.setValue('loanDetails', undefined, { shouldValidate: true });
                             if (value !== 'Pago de Préstamo') form.setValue('loanPaymentDetails', undefined, { shouldValidate: true });
                         }} value={field.value}>
@@ -499,8 +491,7 @@ export default function TransactionsPage() {
                       )}
                     />
                   )}
-
-                  {watchedCategory !== 'Pago de Préstamo' && (
+                  
                     <FormField
                       control={form.control}
                       name="amount"
@@ -508,13 +499,13 @@ export default function TransactionsPage() {
                         <FormItem>
                           <FormLabel>Monto</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} disabled={watchedCategory === 'Préstamo'} />
+                            <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  )}
+
 
                   {watchedCategory === 'Pago de Préstamo' && (
                     <>
@@ -921,7 +912,7 @@ export default function TransactionsPage() {
                         <FormItem>
                           <FormLabel>Monto</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} disabled={watchedCategory === 'Préstamo'} />
+                            <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1101,3 +1092,5 @@ export default function TransactionsPage() {
     </>
   );
 }
+
+    
