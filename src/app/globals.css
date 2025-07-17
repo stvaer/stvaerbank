@@ -157,7 +157,7 @@ body {
     .bill-due-day {
         font-weight: bold;
         background-color: hsl(var(--primary) / 0.1);
-        border: 1px solid hsl(var(--primary) / 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.5);
         color: hsl(var(--primary));
         position: relative;
     }
