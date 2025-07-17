@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm } from "react";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, addDays } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp } from "lucide-react";
@@ -38,7 +38,7 @@ type FormValues = Transaction & {
 }
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<(Transaction & {id: string})[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const auth = getAuth(app);
@@ -166,7 +166,7 @@ export default function TransactionsPage() {
 
       const newTransaction = { ...transactionData, id: docRef.id, date: data.date };
       const newTransactions = [newTransaction, ...transactions].sort((a,b) => b.date.getTime() - a.date.getTime());
-      setTransactions(newTransactions as Transaction[]);
+      setTransactions(newTransactions as (Transaction & {id: string})[]);
 
       toast({
         title: "Transacción Añadida",
