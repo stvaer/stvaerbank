@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
-import { Calendar as CalendarIcon, PlusCircle, Trash2, Banknote } from "lucide-react"
+import { Calendar as CalendarIcon, PlusCircle, Trash2 } from "lucide-react"
 import type { Timestamp } from "firebase/firestore";
 
 import { billSchema, type Bill } from "@/lib/schemas"
@@ -156,8 +156,6 @@ export default function SchedulerPage() {
   const modifiersClassNames = {
     billDay: 'bill-due-day',
   };
-  
-  const BillIcon = () => <Banknote className="h-3 w-3 text-white absolute bottom-1 right-1" />;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -254,17 +252,6 @@ export default function SchedulerPage() {
                     mode="single"
                     modifiers={modifiers}
                     modifiersClassNames={modifiersClassNames}
-                    components={{
-                        DayContent: (props) => {
-                            const isBillDay = billDates.some(d => format(d, 'yyyy-MM-dd') === format(props.date, 'yyyy-MM-dd'));
-                            return (
-                                <div className="relative h-full w-full flex items-center justify-center">
-                                    <span>{props.date.getDate()}</span>
-                                    {isBillDay && <BillIcon />}
-                                </div>
-                            );
-                        }
-                    }}
                     className="p-3 w-full max-w-sm"
                  />
             </CardContent>
@@ -324,5 +311,3 @@ export default function SchedulerPage() {
     </div>
   )
 }
-
-    
