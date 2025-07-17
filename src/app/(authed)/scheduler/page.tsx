@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -156,7 +157,7 @@ export default function SchedulerPage() {
   const BillIcon = () => <Banknote className="h-3 w-3 text-white absolute bottom-1 right-1" />;
 
   return (
-    <div className="grid lg:grid-cols-5 gap-6 animate-fade-in">
+    <div className="grid md:grid-cols-1 lg:grid-cols-5 gap-6 animate-fade-in">
       <div className="lg:col-span-2 space-y-6">
         <Card>
           <CardHeader>
@@ -247,8 +248,8 @@ export default function SchedulerPage() {
             <CardTitle>Calendario de Pagos</CardTitle>
              <CardDescription>Una vista general de tus próximas facturas.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col md:flex-row gap-6">
-            <div className="flex-1">
+          <CardContent className="flex flex-col xl:flex-row gap-6">
+            <div className="flex justify-center xl:flex-1">
                  <Calendar
                     mode="single"
                     modifiers={modifiers}
@@ -264,46 +265,48 @@ export default function SchedulerPage() {
                             );
                         }
                     }}
-                    className="p-3 w-full"
+                    className="p-3 w-full max-w-sm"
                  />
             </div>
-            <div className="flex-1 md:border-l md:pl-6">
+            <div className="flex-1 xl:border-l xl:pl-6">
               <h3 className="text-lg font-medium mb-4">Facturas Próximas</h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Factura</TableHead>
-                    <TableHead>Vence</TableHead>
-                    <TableHead className="text-right">Monto</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                        <TableCell className="text-right"><Skeleton className="h-5 w-12" /></TableCell>
-                        <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    bills.map((bill) => (
-                      <TableRow key={bill.id}>
-                        <TableCell className="font-medium truncate max-w-28">{bill.name}</TableCell>
-                        <TableCell>{format(bill.dueDate, "PPP")}</TableCell>
-                        <TableCell className="text-right">${bill.amount.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">
-                         <Button variant="ghost" size="icon" onClick={() => removeBill(bill.id)}>
-                           <Trash2 className="h-4 w-4 text-destructive" />
-                         </Button>
-                      </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              <div className="relative overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Factura</TableHead>
+                      <TableHead>Vence</TableHead>
+                      <TableHead className="text-right">Monto</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      Array.from({ length: 3 }).map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                          <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                          <TableCell className="text-right"><Skeleton className="h-5 w-12" /></TableCell>
+                          <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      bills.map((bill) => (
+                        <TableRow key={bill.id}>
+                          <TableCell className="font-medium truncate max-w-28">{bill.name}</TableCell>
+                          <TableCell>{format(bill.dueDate, "PPP")}</TableCell>
+                          <TableCell className="text-right">${bill.amount.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                           <Button variant="ghost" size="icon" onClick={() => removeBill(bill.id)}>
+                             <Trash2 className="h-4 w-4 text-destructive" />
+                           </Button>
+                        </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </CardContent>
         </Card>
