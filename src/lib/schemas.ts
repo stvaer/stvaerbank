@@ -4,6 +4,7 @@ import * as z from "zod";
 export const loanSchema = z.object({
   loanId: z.string().min(1, "Se requiere un ID para el préstamo."),
   totalAmount: z.coerce.number().positive("El monto total debe ser positivo."),
+  interestRate: z.coerce.number().min(0, "La tasa de interés no puede ser negativa."),
   installments: z.coerce.number().int().min(1, "Debe haber al menos una cuota."),
   frequency: z.enum(["monthly", "bi-weekly"], { required_error: "Debes seleccionar una frecuencia." }),
   startDate: z.date({ required_error: "Se requiere una fecha de inicio de pago." }),

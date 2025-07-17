@@ -65,6 +65,7 @@ export default function TransactionsPage() {
       loanDetails: {
         loanId: '',
         totalAmount: 0,
+        interestRate: 0,
         installments: 0,
         frequency: 'monthly',
         startDate: new Date(),
@@ -202,11 +203,20 @@ export default function TransactionsPage() {
       });
       
       if (data.category === 'Préstamo' && data.loanDetails) {
-        const { loanId, totalAmount, installments, frequency, startDate } = data.loanDetails;
-        const installmentAmount = totalAmount / installments;
+        const { loanId, totalAmount, installments, frequency, startDate, interestRate } = data.loanDetails;
+        
+        let installmentAmount;
+        if (interestRate > 0) {
+            const monthlyRate = interestRate / 100 / 12;
+            const power = Math.pow(1 + monthlyRate, installments);
+            installmentAmount = totalAmount * (monthlyRate * power) / (power - 1);
+        } else {
+            installmentAmount = totalAmount / installments;
+        }
+
         const batch = writeBatch(db);
 
-        let currentDueDate: Date | undefined = startDate;
+        let currentDueDate: Date = new Date(startDate);
 
         for (let i = 0; i < installments; i++) {
           let dueDate: Date;
@@ -217,20 +227,12 @@ export default function TransactionsPage() {
               if (frequency === 'monthly') {
                   currentDueDate = addMonths(currentDueDate, 1);
               } else { // bi-weekly logic
-                  const lastPaymentDay = currentDueDate.getDate();
-                  if (lastPaymentDay <= 15) {
-                      currentDueDate = setDate(currentDueDate, 15);
-                      if (currentDueDate < addDays(startDate, i * 14)) { // Ensure we move forward in time
-                          currentDueDate = lastDayOfMonth(currentDueDate);
-                      }
-                  } else {
-                      currentDueDate = lastDayOfMonth(currentDueDate);
-                  }
-
-                  if (currentDueDate <= addDays(startDate, i * 14)) {
-                     currentDueDate = addMonths(currentDueDate,1);
-                     currentDueDate = setDate(currentDueDate, 15);
-                  }
+                   const lastPaymentDay = currentDueDate.getDate();
+                   if (lastPaymentDay <= 15) {
+                       currentDueDate = setDate(currentDueDate, lastDayOfMonth(currentDueDate).getDate());
+                   } else {
+                       currentDueDate = setDate(addMonths(currentDueDate, 1), 15);
+                   }
               }
               dueDate = currentDueDate;
           }
@@ -244,15 +246,6 @@ export default function TransactionsPage() {
           const billRef = doc(collection(db, "bills"));
           batch.set(billRef, billData);
 
-          // Update currentDueDate for the next iteration if it's bi-weekly
-           if (i < installments - 1 && frequency === 'bi-weekly') {
-              const lastPaymentDay = dueDate.getDate();
-              if (lastPaymentDay <= 15) {
-                  currentDueDate = lastDayOfMonth(dueDate);
-              } else {
-                  currentDueDate = setDate(addMonths(dueDate, 1), 15);
-              }
-           }
         }
         await batch.commit();
       }
@@ -275,6 +268,7 @@ export default function TransactionsPage() {
         loanDetails: {
             loanId: '',
             totalAmount: 0,
+            interestRate: 0,
             installments: 0,
             frequency: 'monthly',
             startDate: new Date(),
@@ -351,6 +345,7 @@ export default function TransactionsPage() {
       } : {
         loanId: '',
         totalAmount: 0,
+        interestRate: 0,
         installments: 0,
         frequency: 'monthly',
         startDate: new Date(),
@@ -358,6 +353,18 @@ export default function TransactionsPage() {
     });
     setEditModalOpen(true);
   }
+  
+  const calculateInstallmentAmount = (loanDetails: LoanDetails): number => {
+    if (!loanDetails) return 0;
+    const { totalAmount, installments, interestRate } = loanDetails;
+    if (interestRate > 0) {
+        const monthlyRate = interestRate / 100 / 12;
+        const power = Math.pow(1 + monthlyRate, installments);
+        return totalAmount * (monthlyRate * power) / (power - 1);
+    }
+    return totalAmount / installments;
+  };
+
 
   return (
     <>
@@ -520,6 +527,13 @@ export default function TransactionsPage() {
                                   field.onChange(value);
                                   form.setValue('amount', value);
                               }} /></FormControl><FormMessage /></FormItem>
+                            )}
+                          />
+                        <FormField
+                            control={form.control}
+                            name="loanDetails.interestRate"
+                            render={({ field }) => (
+                              <FormItem><FormLabel>Tasa de Interés Anual (%)</FormLabel><FormControl><Input type="number" placeholder="15" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
                             )}
                           />
                         <FormField
@@ -738,7 +752,7 @@ export default function TransactionsPage() {
                                 </div>
                                )}
                                {tx.category === 'Préstamo' && tx.loanDetails && (
-                                <div className="grid grid-cols-3 gap-2 pt-2 mt-2 border-t border-dashed">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 mt-2 border-t border-dashed">
                                     <div>
                                         <p className="text-xs text-muted-foreground">ID PRÉSTAMO</p>
                                         <p className="font-medium text-xs truncate">{tx.loanDetails.loanId}</p>
@@ -750,6 +764,10 @@ export default function TransactionsPage() {
                                     <div>
                                         <p className="text-xs text-muted-foreground">FRECUENCIA</p>
                                         <p className="font-medium text-xs capitalize">{tx.loanDetails.frequency === 'monthly' ? 'Mensual' : 'Quincenal'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">MONTO CUOTA</p>
+                                        <p className="font-medium text-xs">${calculateInstallmentAmount(tx.loanDetails).toFixed(2)}</p>
                                     </div>
                                 </div>
                                )}
@@ -884,6 +902,13 @@ export default function TransactionsPage() {
                                 }} /></FormControl><FormMessage /></FormItem>
                               )}
                             />
+                            <FormField
+                                control={form.control}
+                                name="loanDetails.interestRate"
+                                render={({ field }) => (
+                                <FormItem><FormLabel>Tasa de Interés Anual (%)</FormLabel><FormControl><Input type="number" placeholder="15" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
+                                )}
+                            />
                           <FormField
                             control={form.control}
                             name="loanDetails.installments"
@@ -973,6 +998,3 @@ export default function TransactionsPage() {
     </>
   );
 }
-
-
-
