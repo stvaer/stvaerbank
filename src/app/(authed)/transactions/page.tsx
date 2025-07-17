@@ -111,14 +111,15 @@ export default function TransactionsPage() {
                 append(0);
             }
         } else if (numInstallments < currentFields) {
-            for (let i = currentFields; i > numInstallments; i--) {
-                remove(i - 1);
+            for (let i = currentFields - 1; i >= numInstallments; i--) {
+                remove(i);
             }
         }
     } else {
-        remove(); // remove all fields
+        remove();
     }
-}, [watchedInstallments, watchedCategory, fields.length, append, remove]);
+  }, [watchedInstallments, watchedCategory, fields.length, append, remove]);
+
 
   const fetchActiveLoans = useCallback(async (uid: string) => {
     if (!db || !firebaseUtils) return;
