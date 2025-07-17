@@ -7,7 +7,7 @@ import { ResponsiveContainer, Line, LineChart, CartesianGrid, XAxis, YAxis, Tool
 import { DollarSign, CreditCard, Banknote, Landmark } from "lucide-react";
 import { collection, getDocs, Timestamp, query, where } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-import { db, app } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { Transaction } from "@/lib/schemas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { subMonths, format, startOfMonth, endOfMonth } from 'date-fns';
@@ -16,7 +16,6 @@ export default function DashboardPage() {
   const [balances, setBalances] = useState<Array<{ name: string; value: number; icon: React.ElementType; color: string }>>([]);
   const [chartData, setChartData] = useState<Array<{ month: string; balance: number }>>([]);
   const [loading, setLoading] = useState(true);
-  const auth = getAuth(app);
   const user = auth.currentUser;
 
   useEffect(() => {

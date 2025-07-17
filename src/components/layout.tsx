@@ -9,7 +9,7 @@ import { getAuth, onAuthStateChanged, User, signOut } from "firebase/auth";
 import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { addDays, isAfter, isBefore, startOfToday } from "date-fns";
 
-import { app, db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 
 import {
@@ -45,14 +45,13 @@ interface Notification {
   type: 'bill' | 'statement';
 }
 
-export function AppLayout({ children }: { children: React.Node }) {
+export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const pageTitle = navItems.find(item => pathname.startsWith(item.href))?.label || "Dashboard";
   const [user, setUser] = useState<User | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
-  const auth = getAuth(app);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -65,7 +64,7 @@ export function AppLayout({ children }: { children: React.Node }) {
     });
 
     return () => unsubscribe();
-  }, [auth, router]);
+  }, [router]);
   
   const fetchNotifications = async (uid: string) => {
     setLoadingNotifications(true);

@@ -11,7 +11,7 @@ import { getAuth } from "firebase/auth";
 
 import { billSchema, type Bill } from "@/lib/schemas"
 import { cn } from "@/lib/utils"
-import { db, app } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -31,7 +31,6 @@ export default function SchedulerPage() {
   const [loading, setLoading] = useState(true);
   const [billDates, setBillDates] = useState<Date[]>([]);
   const { toast } = useToast();
-  const auth = getAuth(app);
   const user = auth.currentUser;
 
   const form = useForm<Bill>({

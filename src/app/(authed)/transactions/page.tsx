@@ -12,7 +12,7 @@ import { DateRange } from "react-day-picker";
 
 import { transactionSchema, type Transaction, type LoanDetails } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
-import { db, app } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +49,6 @@ export default function TransactionsPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const { toast } = useToast();
-  const auth = getAuth(app);
   const [user, setUser] = useState(auth.currentUser);
 
   const form = useForm<FormValues>({
@@ -149,7 +148,7 @@ export default function TransactionsPage() {
       }
     });
     return () => unsubscribe();
-  }, [auth]);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -174,22 +173,26 @@ export default function TransactionsPage() {
       return;
     }
     
-    const transactionData: any = {
+    const transactionData: Omit<Transaction, 'id'> = {
       description: data.description,
       amount: data.amount,
-      type: data.type,
+      type: data.type, // Use the selected type directly
       category: data.category,
       userId: user.uid,
-      date: Timestamp.fromDate(data.date),
+      date: data.date,
+      hasAdvance: data.hasAdvance,
+      advanceAmount: data.advanceAmount,
     };
-
-    if (data.category === 'Salario' && data.hasAdvance) {
-      transactionData.hasAdvance = data.hasAdvance;
-      transactionData.advanceAmount = data.advanceAmount;
+    
+    if (data.category === 'Préstamo') {
+        transactionData.loanDetails = data.loanDetails;
     }
 
     try {
-      const docRef = await addDoc(collection(db, "transactions"), transactionData);
+      const docRef = await addDoc(collection(db, "transactions"), {
+        ...transactionData,
+        date: Timestamp.fromDate(transactionData.date)
+      });
       
       if (data.category === 'Préstamo' && data.loanDetails) {
         const { loanId, totalAmount, installments, frequency, startDate } = data.loanDetails;
@@ -216,7 +219,7 @@ export default function TransactionsPage() {
         await batch.commit();
       }
       
-      const newTransaction = { ...transactionData, id: docRef.id, date: (transactionData.date as Timestamp).toDate() };
+      const newTransaction = { ...transactionData, id: docRef.id, date: transactionData.date };
       setTransactions(prev => [newTransaction, ...prev].sort((a,b) => b.date.getTime() - a.date.getTime()));
 
       toast({
@@ -636,5 +639,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    

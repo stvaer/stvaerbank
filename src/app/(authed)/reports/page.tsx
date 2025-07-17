@@ -8,7 +8,7 @@ import { ArrowUpRight, ArrowDownLeft, Milestone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { collection, query, where, getDocs, Timestamp } from "firebase/firestore"
 import { getAuth } from "firebase/auth"
-import { db, app } from "@/lib/firebase"
+import { db, auth } from "@/lib/firebase"
 import { Transaction } from "@/lib/schemas"
 import { subMonths, startOfMonth, endOfMonth, format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -29,7 +29,6 @@ export default function ReportsPage() {
     netFlow: 0,
   });
 
-  const auth = getAuth(app);
   const user = auth.currentUser;
 
   useEffect(() => {

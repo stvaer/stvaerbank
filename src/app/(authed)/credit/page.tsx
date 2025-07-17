@@ -9,7 +9,7 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { PlusCircle, MoreVertical, SquarePlus, FileText, Search, Calendar as CalendarIcon, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
-import { db, app } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { creditCardSchema, statementSchema, type CreditCard, type Statement, paymentSchema, type Payment } from "@/lib/schemas";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,7 +72,6 @@ export default function CreditPage() {
   const [isEditStatementModalOpen, setEditStatementModalOpen] = useState(false);
   const [editingStatement, setEditingStatement] = useState<StatementWithId | null>(null);
   const { toast } = useToast();
-  const auth = getAuth(app);
   const [user, setUser] = useState(auth.currentUser);
 
   const cardForm = useForm<CreditCard>({
@@ -115,7 +114,7 @@ export default function CreditPage() {
         });
 
         return () => unsubscribe();
-    }, [auth]);
+    }, []);
 
   const fetchCreditCards = async (uid: string) => {
     setLoading(true);
