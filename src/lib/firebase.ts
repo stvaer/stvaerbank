@@ -16,25 +16,20 @@ const firebaseConfig: FirebaseOptions = {
 };
 
 // Initialize Firebase for client-side and export instances
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
 
 function initializeFirebase() {
     if (typeof window !== 'undefined') {
         if (!getApps().length) {
             app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
         } else {
             app = getApp();
-            auth = getAuth(app);
-            db = getFirestore(app);
         }
+        auth = getAuth(app);
+        db = getFirestore(app);
     }
 }
 
-// Call initialization
-initializeFirebase();
-
-export { app, db, auth };
+export { app, db, auth, initializeFirebase };

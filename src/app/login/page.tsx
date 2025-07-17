@@ -3,8 +3,8 @@
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { app } from "@/lib/firebase";
+import { getAuth, signInWithEmailAndPassword, Auth } from "firebase/auth";
+import { initializeFirebase, app } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
@@ -19,10 +19,12 @@ export default function LoginPage() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const gridSpotlightRef = useRef<HTMLDivElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
-
-  const auth = getAuth(app);
+  const [auth, setAuth] = useState<Auth | null>(null);
 
   useEffect(() => {
+    initializeFirebase();
+    setAuth(getAuth(app!));
+
     const handleMouseMove = (e: MouseEvent) => {
       if (!isModalOpen && gridSpotlightRef.current) {
         gridSpotlightRef.current.style.setProperty("--x", `${e.clientX}px`);
@@ -78,6 +80,11 @@ export default function LoginPage() {
   };
 
   const handleLogin = async (currentPin?: string) => {
+    if (!auth) {
+        setErrorMessage("Firebase no está listo. Inténtalo de nuevo.");
+        setError(true);
+        return;
+    }
     setError(false);
     setErrorMessage("");
     
