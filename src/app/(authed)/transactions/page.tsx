@@ -102,22 +102,23 @@ export default function TransactionsPage() {
   }, [watchedInstallmentAmounts, watchedCategory, form]);
 
   useEffect(() => {
+    const numInstallments = Number(watchedInstallments) || 0;
+    const currentFields = fields.length;
+    
     if (watchedCategory === 'Préstamo') {
-        const currentAmount = fields.length;
-        const newAmount = Number(watchedInstallments) || 0;
-        if (newAmount > currentAmount) {
-            for (let i = currentAmount; i < newAmount; i++) {
+        if (numInstallments > currentFields) {
+            for (let i = currentFields; i < numInstallments; i++) {
                 append(0);
             }
-        } else if (newAmount < currentAmount) {
-            for (let i = currentAmount; i > newAmount; i--) {
+        } else if (numInstallments < currentFields) {
+            for (let i = currentFields; i > numInstallments; i--) {
                 remove(i - 1);
             }
         }
     } else {
-        remove();
+        remove(); // remove all fields
     }
-  }, [watchedInstallments, watchedCategory, append, remove]);
+}, [watchedInstallments, watchedCategory, fields.length, append, remove]);
 
   const fetchActiveLoans = useCallback(async (uid: string) => {
     if (!db || !firebaseUtils) return;
@@ -147,7 +148,7 @@ export default function TransactionsPage() {
     const loan = activeLoans.find(l => l.id === loanTransactionId);
     if (!loan || !loan.loanDetails) return;
 
-    const { collection, query, where, getDocs, orderBy } = firebaseUtils;
+    const { collection, query, where, getDocs, orderBy, Timestamp } = firebaseUtils;
     try {
         const q = query(
             collection(db, "bills"),
@@ -178,7 +179,7 @@ export default function TransactionsPage() {
     if (!db || !firebaseUtils) return;
     setLoading(true);
 
-    const { collection, query, where, orderBy, getDocs, Timestamp, limit, startOfDay, endOfDay, startOfMonth, endOfMonth } = firebaseUtils;
+    const { collection, query, where, orderBy, getDocs, Timestamp, limit } = firebaseUtils;
 
     try {
         let q;
@@ -224,7 +225,7 @@ export default function TransactionsPage() {
             const data = doc.data();
             const loanDetails = data.loanDetails && data.loanDetails.startDate ? {
                 ...data.loanDetails,
-                startDate: (data.loanDetails.startDate as Timestamp).toDate(),
+                startDate: (data.loanDetails.startDate instanceof Timestamp) ? data.loanDetails.startDate.toDate() : new Date(),
             } : undefined;
 
             return {
@@ -310,21 +311,32 @@ export default function TransactionsPage() {
       if (data.category === 'Préstamo' && data.loanDetails && data.loanDetails.installmentAmounts) {
         const { loanId, installments, frequency, startDate, installmentAmounts } = data.loanDetails;
         let currentDueDate: Date = new Date(startDate);
+        
         for (let i = 0; i < installments; i++) {
-          let dueDate: Date = currentDueDate;
-          if (i > 0) {
+          let dueDate: Date;
+          if (i === 0) {
+            dueDate = currentDueDate;
+          } else {
               if (frequency === 'monthly') {
                   dueDate = addMonths(currentDueDate, 1);
-              } else {
-                   const lastPaymentDay = currentDueDate.getDate();
+              } else { // bi-weekly
+                  const lastPaymentDay = currentDueDate.getDate();
                    if (lastPaymentDay <= 15) {
-                       dueDate = setDate(currentDueDate, lastDayOfMonth(currentDueDate).getDate());
+                       dueDate = setDate(addMonths(currentDueDate, 0), 15);
                    } else {
-                       dueDate = setDate(addMonths(currentDueDate, 1), 15);
+                       dueDate = setDate(addMonths(currentDueDate, 0), lastDayOfMonth(currentDueDate).getDate());
+                   }
+                   if(dueDate <= currentDueDate) {
+                      if (lastPaymentDay <= 15) {
+                         dueDate = setDate(addMonths(currentDueDate, 0), lastDayOfMonth(currentDueDate).getDate());
+                      } else {
+                         dueDate = setDate(addMonths(currentDueDate, 1), 15);
+                      }
                    }
               }
           }
           currentDueDate = dueDate;
+
           const billData = {
             name: `Cuota ${i + 1}/${installments} - Préstamo ${loanId}`,
             amount: installmentAmounts[i],
@@ -392,6 +404,10 @@ export default function TransactionsPage() {
     try {
       const transactionRef = doc(db, "transactions", editingTransaction.id);
       
+      if (transactionData.date) {
+        (transactionData as any).date = Timestamp.fromDate(transactionData.date);
+      }
+      
       if (transactionData.loanDetails && transactionData.loanDetails.startDate) {
         transactionData.loanDetails = {
             ...transactionData.loanDetails,
@@ -399,10 +415,7 @@ export default function TransactionsPage() {
         } as any;
       }
       
-      await updateDoc(transactionRef, {
-        ...transactionData,
-        date: Timestamp.fromDate(data.date),
-      });
+      await updateDoc(transactionRef, transactionData as any);
 
       toast({
         title: "Transacción Actualizada",
@@ -646,7 +659,7 @@ export default function TransactionsPage() {
                           control={form.control}
                           name="loanDetails.installments"
                           render={({ field }) => (
-                            <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} /></FormControl><FormMessage /></FormItem>
                           )}
                         />
                         {fields.map((item, index) => (
@@ -1014,7 +1027,7 @@ export default function TransactionsPage() {
                             control={form.control}
                             name="loanDetails.installments"
                             render={({ field }) => (
-                                <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} /></FormControl><FormMessage /></FormItem>
                             )}
                             />
                             {fields.map((item, index) => (
