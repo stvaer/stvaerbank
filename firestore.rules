@@ -3,29 +3,34 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
+    // Helper function to check ownership
     function isOwner(userId) {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    // Transactions: Only the owner can create, read, update, delete
     match /transactions/{transactionId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read, write: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);
     }
 
+    // Bills: Only the owner can create, read, update, delete
     match /bills/{billId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read, write: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);
     }
 
+    // Credit Cards: Only the owner can create, read, update, delete
     match /credit_cards/{cardId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
+        allow read, write: if isOwner(resource.data.userId);
+        allow create: if isOwner(request.resource.data.userId);
     }
 
+    // Statements: Only the owner can create, read, update, delete
     match /statements/{statementId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
+        allow read, write: if isOwner(resource.data.userId);
+        allow create: if isOwner(request.resource.data.userId);
     }
   }
 }
