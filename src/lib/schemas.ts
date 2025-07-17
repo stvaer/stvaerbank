@@ -17,6 +17,7 @@ export const transactionSchema = z.object({
   category: z.string({ required_error: "Por favor, selecciona una categoría." }),
   date: z.date({ required_error: "Se requiere una fecha." }),
   userId: z.string().optional(),
+  id: z.string().optional(),
   hasAdvance: z.boolean().optional(),
   advanceAmount: z.coerce.number().optional(),
   loanDetails: loanSchema.optional(),
@@ -57,3 +58,27 @@ export const billSchema = z.object({
 });
 
 export type Bill = z.infer<typeof billSchema>;
+
+
+export const creditCardSchema = z.object({
+  cardName: z.string().min(3, "El nombre de la tarjeta es requerido."),
+  bank: z.string().min(2, "El nombre del banco es requerido."),
+  creditLimit: z.coerce.number().positive("El límite de crédito debe ser un número positivo."),
+  currentDebt: z.coerce.number().min(0, "La deuda actual no puede ser negativa."),
+  lastFourDigits: z.string().length(4, "Debe ingresar los últimos 4 dígitos.").regex(/^\d{4}$/, "Solo números son permitidos."),
+  userId: z.string().optional(),
+});
+
+export type CreditCard = z.infer<typeof creditCardSchema>;
+
+export const statementSchema = z.object({
+  cardId: z.string(),
+  month: z.string().regex(/^\d{4}-\d{2}$/, "El formato del mes debe ser YYYY-MM."),
+  statementBalance: z.coerce.number().min(0, "El saldo del estado de cuenta no puede ser negativo."),
+  minimumPayment: z.coerce.number().min(0, "El pago mínimo no puede ser negativo."),
+  paymentForNoInterest: z.coerce.number().min(0, "El pago para no generar intereses no puede ser negativo."),
+  isPaid: z.boolean().default(false),
+  userId: z.string(),
+});
+
+export type Statement = z.infer<typeof statementSchema>;

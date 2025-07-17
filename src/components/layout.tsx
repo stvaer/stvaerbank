@@ -4,7 +4,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { AreaChart, ArrowRightLeft, CalendarClock, LayoutDashboard, LogOut, Plus } from "lucide-react";
+import { AreaChart, ArrowRightLeft, CalendarClock, CreditCard, LayoutDashboard, LogOut, Plus } from "lucide-react";
 import { getAuth, onAuthStateChanged, User, signOut } from "firebase/auth";
 import { app } from "@/lib/firebase";
 import { useEffect, useState } from "react";
@@ -29,6 +29,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transacciones", icon: ArrowRightLeft },
   { href: "/scheduler", label: "Calendario", icon: CalendarClock },
+  { href: "/credit", label: "Crédito", icon: CreditCard },
   { href: "/reports", label: "Reportes", icon: AreaChart },
 ];
 
@@ -73,16 +74,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
             {navItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href} passHref>
+                <Link href={item.href}>
                   <SidebarMenuButton
-                    asChild
                     isActive={pathname === item.href}
                     tooltip={{ children: item.label }}
                   >
-                    <div>
                       <item.icon className="size-5" />
                       <span>{item.label}</span>
-                    </div>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>

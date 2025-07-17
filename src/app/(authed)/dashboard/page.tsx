@@ -26,9 +26,15 @@ export default function DashboardPage() {
         return;
       }
       try {
-        const q = query(collection(db, "transactions"), where("userId", "==", user.uid));
-        const querySnapshot = await getDocs(q);
-        const transactionsData = querySnapshot.docs.map(doc => {
+        const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
+        const creditCardsQuery = query(collection(db, "credit_cards"), where("userId", "==", user.uid));
+
+        const [transactionsSnapshot, creditCardsSnapshot] = await Promise.all([
+          getDocs(transactionsQuery),
+          getDocs(creditCardsQuery),
+        ]);
+
+        const transactionsData = transactionsSnapshot.docs.map(doc => {
           const data = doc.data();
           return {
             ...data,
@@ -36,18 +42,20 @@ export default function DashboardPage() {
           } as Transaction;
         });
 
+        const creditCardsData = creditCardsSnapshot.docs.map(doc => doc.data());
+        
         const totalIncome = transactionsData.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
         const totalExpense = transactionsData.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
         const totalBalance = totalIncome - totalExpense;
         const checkingAccount = totalBalance * 0.4;
         const savingsAccount = totalBalance * 0.6;
-        const creditCard = -Math.abs(transactionsData.filter(t => t.category === "Housing").reduce((acc, t) => acc + t.amount, 0));
+        const totalCreditCardDebt = creditCardsData.reduce((acc, card) => acc + card.currentDebt, 0);
 
         setBalances([
           { name: "Balance Total", value: totalBalance, icon: DollarSign, color: "text-primary" },
           { name: "Cuenta Corriente", value: checkingAccount, icon: Landmark, color: "text-muted-foreground" },
           { name: "Cuenta de Ahorros", value: savingsAccount, icon: Banknote, color: "text-muted-foreground" },
-          { name: "Tarjeta de Crédito", value: creditCard, icon: CreditCard, color: "text-muted-foreground" },
+          { name: "Tarjeta de Crédito", value: -totalCreditCardDebt, icon: CreditCard, color: "text-muted-foreground" },
         ]);
 
         const monthlyData: Array<{ month: string; balance: number }> = [];
@@ -85,13 +93,12 @@ export default function DashboardPage() {
     const unsubscribe = auth.onAuthStateChanged(authUser => {
         if(authUser) {
             fetchData();
-            unsubscribe();
         } else {
             setLoading(false);
         }
     });
-
-    return () => unsubscribe();
+     // No need to unsubscribe in this model, but good practice.
+    // return () => unsubscribe();
   }, [user]);
 
   return (
