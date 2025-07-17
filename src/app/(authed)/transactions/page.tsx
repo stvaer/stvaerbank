@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, addMonths, addDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
+import { format, addMonths, addDays, startOfDay, endOfDay, startOfMonth, endOfMonth, setDate, lastDayOfMonth } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp, Pencil } from "lucide-react";
 import type { Timestamp } from "firebase/firestore";
 import { DateRange } from "react-day-picker";
@@ -206,13 +206,34 @@ export default function TransactionsPage() {
         const installmentAmount = totalAmount / installments;
         const batch = writeBatch(db);
 
+        let currentDueDate = startDate;
+
         for (let i = 0; i < installments; i++) {
           let dueDate: Date;
-          if (frequency === 'monthly') {
-            dueDate = addMonths(startDate, i);
-          } else { // bi-weekly
-            dueDate = addDays(startDate, (i + 1) * 15);
+          if (i === 0) {
+            dueDate = currentDueDate;
+          } else {
+            if (frequency === 'monthly') {
+                currentDueDate = addMonths(currentDueDate, 1);
+            } else { // bi-weekly
+                const lastPaymentDay = currentDueDate.getDate();
+                if (lastPaymentDay <= 15) {
+                    currentDueDate = setDate(currentDueDate, 15);
+                    if (currentDueDate < addDays(startDate, i * 14)) { // Ensure we move forward
+                        currentDueDate = lastDayOfMonth(currentDueDate);
+                    }
+                } else {
+                    currentDueDate = lastDayOfMonth(currentDueDate);
+                }
+
+                if (currentDueDate <= addDays(startDate, i * 14)) {
+                   currentDueDate = addMonths(currentDueDate,1);
+                   currentDueDate = setDate(currentDueDate, 15);
+                }
+            }
+            dueDate = currentDueDate;
           }
+          
 
           const billData = {
             name: `Cuota ${i + 1}/${installments} - Préstamo ${loanId}`,
@@ -222,6 +243,28 @@ export default function TransactionsPage() {
           };
           const billRef = doc(collection(db, "bills"));
           batch.set(billRef, billData);
+
+           if (i > 0) {
+              if (frequency === 'monthly') {
+                // already handled by loop
+              } else {
+                 const lastPaymentDay = currentDueDate.getDate();
+                 if (lastPaymentDay <= 15) {
+                    currentDueDate = lastDayOfMonth(currentDueDate);
+                 } else {
+                    currentDueDate = setDate(addMonths(currentDueDate, 1), 15);
+                 }
+              }
+           } else {
+              if (frequency === 'bi-weekly') {
+                  const lastPaymentDay = currentDueDate.getDate();
+                  if (lastPaymentDay <= 15) {
+                      currentDueDate = lastDayOfMonth(currentDueDate);
+                  } else {
+                      currentDueDate = setDate(addMonths(currentDueDate, 1), 15);
+                  }
+              }
+           }
         }
         await batch.commit();
       }
@@ -317,7 +360,13 @@ export default function TransactionsPage() {
       loanDetails: transaction.loanDetails ? {
           ...transaction.loanDetails,
           startDate: isDate ? startDate : new Date(),
-      } : undefined
+      } : {
+        loanId: '',
+        totalAmount: 0,
+        installments: 0,
+        frequency: 'monthly',
+        startDate: new Date(),
+      }
     });
     setEditModalOpen(true);
   }
@@ -936,4 +985,5 @@ export default function TransactionsPage() {
     </>
   );
 }
+
 
