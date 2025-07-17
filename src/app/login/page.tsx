@@ -35,13 +35,6 @@ export default function LoginPage() {
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [isModalOpen]);
-  
-  // Effect to handle login when pin is complete
-  useEffect(() => {
-    if (pin.every(digit => digit !== '')) {
-      handleLogin();
-    }
-  }, [pin]);
 
 
   const openModal = () => {
