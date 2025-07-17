@@ -465,7 +465,7 @@ export default function TransactionsPage() {
                         <div className="p-4 rounded-lg relative">
                           <div className="flex justify-between items-start mb-2">
                             <p className="text-xs font-mono text-muted-foreground">ID#{(tx.id || '').substring(0, 5).toUpperCase()}</p>
-                            <p className="font-semibold text-right">
+                            <div className="font-semibold text-right">
                               {tx.hasAdvance && tx.advanceAmount ? (
                                 <div className="flex flex-col items-end">
                                   <span className="text-xs text-muted-foreground line-through">${tx.amount.toFixed(2)}</span>
@@ -478,7 +478,7 @@ export default function TransactionsPage() {
                                   {tx.type === 'income' ? '+' : '-'}${tx.amount.toFixed(2)}
                                 </span>
                               )}
-                            </p>
+                            </div>
                           </div>
                           <div className="space-y-2">
                             <div>
@@ -492,7 +492,7 @@ export default function TransactionsPage() {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-xs text-muted-foreground">CATEGORÍA</p>
-                                    <p className="font-medium"><Badge variant="outline">{tx.category}</Badge></p>
+                                    <div className="font-medium"><Badge variant="outline">{tx.category}</Badge></div>
                                 </div>
                             </div>
                             <div>
@@ -515,5 +515,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
