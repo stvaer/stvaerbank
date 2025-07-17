@@ -89,19 +89,17 @@ export default function DashboardPage() {
       }
     };
 
-    if (user) {
-      fetchData();
-    } else {
-        const unsubscribe = auth.onAuthStateChanged(authUser => {
-            if(authUser) {
-                fetchData();
-                unsubscribe();
-            } else {
-                setLoading(false);
-            }
-        });
-    }
-  }, [user, auth]);
+    const unsubscribe = auth.onAuthStateChanged(authUser => {
+        if(authUser) {
+            fetchData();
+            unsubscribe();
+        } else {
+            setLoading(false);
+        }
+    });
+
+    return () => unsubscribe();
+  }, [auth]);
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
@@ -151,7 +149,7 @@ export default function DashboardPage() {
              </div>
           ) : (
             <ChartContainer config={chartConfig} className="h-[300px] w-full aspect-video">
-              <LineChart accessibilityLayer data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+              <LineChart accessibilityLayer data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} stroke="hsl(var(--muted-foreground))" />
                 <YAxis
