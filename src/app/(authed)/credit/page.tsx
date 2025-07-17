@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, writeBatch, Timestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-import { PlusCircle, MoreVertical } from "lucide-react";
+import { PlusCircle, MoreVertical, SquarePlus, FileText } from "lucide-react";
 
 import { db, app } from "@/lib/firebase";
 import { creditCardSchema, statementSchema, type CreditCard, type Statement, paymentSchema, type Payment } from "@/lib/schemas";
@@ -365,9 +365,15 @@ export default function CreditPage() {
                       </div>
                       <Progress value={usagePercentage} className="h-2" />
                     </CardContent>
-                    <CardFooter className="flex gap-2">
-                      <Button className="w-full" variant="outline" onClick={() => { setSelectedCard(card); setPaymentModalOpen(true); }}>Registrar Pago</Button>
-                      <Button className="w-full" onClick={() => { setSelectedCard(card); setStatementModalOpen(true); }}>Estado de Cuenta</Button>
+                    <CardFooter className="flex justify-end gap-2">
+                      <Button size="icon" variant="outline" onClick={() => { setSelectedCard(card); setPaymentModalOpen(true); }}>
+                        <SquarePlus className="h-4 w-4" />
+                        <span className="sr-only">Registrar Pago</span>
+                      </Button>
+                      <Button size="icon" onClick={() => { setSelectedCard(card); setStatementModalOpen(true); }}>
+                        <FileText className="h-4 w-4" />
+                        <span className="sr-only">Añadir Estado de Cuenta</span>
+                      </Button>
                     </CardFooter>
                   </Card>
                 );
