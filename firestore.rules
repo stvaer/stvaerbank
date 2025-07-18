@@ -1,36 +1,39 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check ownership
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    
+    // Users can create their own profile, but cannot update or delete it.
+    // They can only read their own profile.
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if false;
     }
 
-    // Transactions: Only the owner can create, read, update, delete
+    // Users can only read/write their own transactions.
     match /transactions/{transactionId} {
-      allow read, write: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
     }
 
-    // Bills: Only the owner can create, read, update, delete
+    // Users can only read/write their own bills.
     match /bills/{billId} {
-      allow read, write: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
     }
 
-    // Credit Cards: Only the owner can create, read, update, delete
+    // Users can only read/write their own credit cards.
     match /credit_cards/{cardId} {
-        allow read, write: if isOwner(resource.data.userId);
-        allow create: if isOwner(request.resource.data.userId);
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Users can only read/write their own statements.
+    match /statements/{statementId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
     }
 
-    // Statements: Only the owner can create, read, update, delete
-    match /statements/{statementId} {
-        allow read, write: if isOwner(resource.data.userId);
-        allow create: if isOwner(request.resource.data.userId);
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
