@@ -288,24 +288,20 @@ export default function TransactionsPage() {
           if (i === 0) {
             dueDate = currentDueDate;
           } else {
-              if (frequency === 'monthly') {
-                  dueDate = addMonths(currentDueDate, 1);
-              } else { // bi-weekly
-                  const lastPaymentDay = currentDueDate.getDate();
-                   if (lastPaymentDay <= 15) {
-                       dueDate = setDate(currentDueDate, 15);
-                       if(dueDate <= currentDueDate) {
-                           dueDate = setDate(currentDueDate, lastDayOfMonth(currentDueDate).getDate());
-                           if(dueDate <= currentDueDate){
-                                dueDate = setDate(addMonths(currentDueDate, 1), 15);
-                           }
-                       }
-                   } else {
-                       dueDate = setDate(addMonths(currentDueDate, 1), 15);
-                   }
-              }
+            if (frequency === 'monthly') {
+                currentDueDate = addMonths(currentDueDate, 1);
+            } else { // bi-weekly
+                const lastDay = currentDueDate.getDate();
+                if (lastDay <= 15) {
+                    currentDueDate = setDate(currentDueDate, lastDayOfMonth(currentDueDate).getDate());
+                } else {
+                    currentDueDate = setDate(addMonths(currentDueDate, 1), 15);
+                }
+            }
+            dueDate = currentDueDate;
           }
-          currentDueDate = dueDate;
+          
+          if (!dueDate) continue;
 
           const billData = {
             name: `Cuota ${i + 1}/${installments} - Préstamo ${loanId}`,
@@ -382,6 +378,7 @@ export default function TransactionsPage() {
         transactionData.loanDetails = {
             ...transactionData.loanDetails,
             startDate: Timestamp.fromDate(transactionData.loanDetails.startDate),
+            installmentAmounts: transactionData.loanDetails.installmentAmounts.slice(0, transactionData.loanDetails.installments),
         } as any;
       }
       
@@ -417,7 +414,6 @@ export default function TransactionsPage() {
     const startDate = transaction.loanDetails?.startDate;
     const isDate = startDate instanceof Date && !isNaN(startDate.valueOf());
     
-    // Ensure installmentAmounts is an array of the correct length with defined values
     const installmentAmounts = Array(24).fill(0);
     if (transaction.loanDetails?.installmentAmounts) {
         transaction.loanDetails.installmentAmounts.forEach((amount, index) => {
@@ -644,7 +640,7 @@ export default function TransactionsPage() {
                           control={form.control}
                           name="loanDetails.installments"
                           render={({ field }) => (
-                            <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" min={1} max={24} placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} /></FormControl><FormMessage /></FormItem>
                           )}
                         />
                         {Array.from({ length: watchedInstallments || 0 }).map((_, index) => (
@@ -1017,7 +1013,7 @@ export default function TransactionsPage() {
                             control={form.control}
                             name="loanDetails.installments"
                             render={({ field }) => (
-                                <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" min={1} max={24} placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} /></FormControl><FormMessage /></FormItem>
                             )}
                             />
                             {Array.from({ length: watchedInstallments || 0 }).map((_, index) => (
@@ -1119,3 +1115,6 @@ export default function TransactionsPage() {
   );
 }
 
+
+
+    
