@@ -143,7 +143,7 @@ export default function LoginPage() {
             )}
           >
             <div className="flex flex-col items-center justify-center">
-              <div className="w-full mb-4">
+              <div className="w-full mb-4 max-w-[280px] mx-auto">
                  <Input 
                    type="email"
                    placeholder="correo@ejemplo.com"
@@ -153,7 +153,7 @@ export default function LoginPage() {
                  />
               </div>
 
-              <div className="mb-6 flex w-full justify-between gap-1 sm:gap-2">
+              <div className="mb-6 flex justify-between gap-1 sm:gap-1 max-w-[280px]">
                 {pin.map((digit, index) => (
                   <input
                     key={index}
@@ -163,7 +163,7 @@ export default function LoginPage() {
                     type="password"
                     maxLength={1}
                     className={cn(
-                      "digit-input w-10 h-12 sm:w-12 sm:h-14 text-lg sm:text-xl",
+                      "digit-input w-10 h-12 sm:w-10 sm:h-12 text-lg sm:text-xl",
                       digit && "filled",
                       error && "bg-red-500/20 !text-red-500 border-red-500"
                     )}
