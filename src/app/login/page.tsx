@@ -7,8 +7,8 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import Image from "next/image";
 import Logo from "../../../public/STVbankhome.svg";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -163,7 +163,7 @@ export default function LoginPage() {
                     type="password"
                     maxLength={1}
                     className={cn(
-                      "digit-input w-10 h-12 sm:w-10 sm:h-12 text-lg sm:text-xl",
+                      "digit-input w-10 h-12 text-lg sm:text-xl",
                       digit && "filled",
                       error && "bg-red-500/20 !text-red-500 border-red-500"
                     )}
@@ -199,5 +199,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
