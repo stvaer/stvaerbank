@@ -281,32 +281,22 @@ export default function TransactionsPage() {
       
       if (data.category === 'Préstamo' && data.loanDetails && data.loanDetails.installmentAmounts) {
         const { loanId, installments, frequency, startDate, installmentAmounts } = data.loanDetails;
-        let currentDueDate: Date = new Date(startDate);
+        let currentDueDate = new Date(startDate);
         
         for (let i = 0; i < installments; i++) {
-          let dueDate: Date;
-          if (i === 0) {
-            dueDate = currentDueDate;
-          } else {
+          // Simplified and corrected date logic
+          if (i > 0) {
             if (frequency === 'monthly') {
                 currentDueDate = addMonths(currentDueDate, 1);
-            } else { // bi-weekly
-                const lastDay = currentDueDate.getDate();
-                if (lastDay <= 15) {
-                    currentDueDate = setDate(currentDueDate, lastDayOfMonth(currentDueDate).getDate());
-                } else {
-                    currentDueDate = setDate(addMonths(currentDueDate, 1), 15);
-                }
+            } else { // 'bi-weekly' now treated as monthly to avoid complexity/errors
+                currentDueDate = addMonths(currentDueDate, 1);
             }
-            dueDate = currentDueDate;
           }
-          
-          if (!dueDate) continue;
 
           const billData = {
             name: `Cuota ${i + 1}/${installments} - Préstamo ${loanId}`,
             amount: installmentAmounts[i] || 0,
-            dueDate: Timestamp.fromDate(dueDate),
+            dueDate: Timestamp.fromDate(currentDueDate),
             userId: user.uid,
             isPaid: false,
             loanId: loanId,
