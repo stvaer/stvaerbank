@@ -247,31 +247,32 @@ export default function TransactionsPage() {
     }
     
     const { collection, addDoc, Timestamp, writeBatch, doc } = firebaseUtils;
-    const batch = writeBatch(db);
     
-    const transactionData: Omit<Transaction, 'id'> = {
-      description: data.description,
-      amount: data.amount,
-      type: data.type,
-      category: data.category,
-      userId: user.uid,
-      date: data.date,
-      hasAdvance: data.hasAdvance,
-      advanceAmount: data.advanceAmount,
-    };
-    
-    if (data.category === 'Préstamo' && data.loanDetails) {
-        transactionData.loanDetails = {
-            ...data.loanDetails,
-            installmentAmounts: data.loanDetails.installmentAmounts.slice(0, data.loanDetails.installments),
-            startDate: Timestamp.fromDate(data.loanDetails.startDate)
-        } as any;
-    }
-    if (data.category === 'Pago de Préstamo' && data.loanPaymentDetails) {
-        transactionData.loanPaymentDetails = data.loanPaymentDetails;
-    }
-
     try {
+      const batch = writeBatch(db);
+      
+      const transactionData: Omit<Transaction, 'id'> = {
+        description: data.description,
+        amount: data.amount,
+        type: data.type,
+        category: data.category,
+        userId: user.uid,
+        date: data.date,
+        hasAdvance: data.hasAdvance,
+        advanceAmount: data.advanceAmount,
+      };
+      
+      if (data.category === 'Préstamo' && data.loanDetails) {
+          transactionData.loanDetails = {
+              ...data.loanDetails,
+              installmentAmounts: data.loanDetails.installmentAmounts.slice(0, data.loanDetails.installments),
+              startDate: Timestamp.fromDate(data.loanDetails.startDate)
+          } as any;
+      }
+      if (data.category === 'Pago de Préstamo' && data.loanPaymentDetails) {
+          transactionData.loanPaymentDetails = data.loanPaymentDetails;
+      }
+
       const transactionRef = doc(collection(db, "transactions"));
       batch.set(transactionRef, {
         ...transactionData,
@@ -513,7 +514,13 @@ export default function TransactionsPage() {
                         <FormItem>
                           <FormLabel>Monto</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                            <Input
+                                type="number"
+                                placeholder="0.00"
+                                {...field}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                disabled={watchedCategory === 'Pago de Préstamo'}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -926,7 +933,12 @@ export default function TransactionsPage() {
                         <FormItem>
                           <FormLabel>Monto</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
+                            <Input
+                                type="number"
+                                placeholder="0.00"
+                                {...field}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1106,3 +1118,4 @@ export default function TransactionsPage() {
     </>
   );
 }
+
