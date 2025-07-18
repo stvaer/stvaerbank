@@ -4,6 +4,7 @@
 import { createContext, useContext, ReactNode } from 'react';
 import type { User, Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
+import type { UserProfile } from '@/lib/schemas';
 
 interface FirebaseContextType {
     user: User | null;
@@ -11,6 +12,7 @@ interface FirebaseContextType {
     auth: Auth | null;
     firebaseUtils: any | null;
     firebaseReady: boolean;
+    userData: UserProfile | null;
 }
 
 const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined);

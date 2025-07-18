@@ -21,7 +21,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "./ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFirebase } from "@/hooks/use-firebase";
@@ -48,7 +48,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, db, firebaseUtils, auth } = useFirebase();
+  const { user, db, firebaseUtils, auth, userData } = useFirebase();
   const pageTitle = navItems.find(item => pathname.startsWith(item.href))?.label || "Dashboard";
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
@@ -156,11 +156,10 @@ export function AppLayout({ children }: AppLayoutProps) {
             </Button>
            <div className="flex items-center gap-3 p-2">
              <Avatar>
-               <AvatarImage data-ai-hint="person abstract" src="https://placehold.co/40x40.png" alt="@user" />
                <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
              </Avatar>
              <div className="flex flex-col truncate">
-                <span className="text-sm font-medium truncate">{user?.displayName || "Usuario"}</span>
+                <span className="text-sm font-medium truncate">{userData?.username || "Usuario"}</span>
                 <span className="text-xs text-muted-foreground truncate">{user?.email || "cargando..."}</span>
              </div>
            </div>
@@ -225,5 +224,3 @@ export function AppLayout({ children }: AppLayoutProps) {
     </SidebarProvider>
   );
 }
-
-    

@@ -12,7 +12,7 @@ import { subMonths, format, startOfMonth, endOfMonth } from 'date-fns';
 import { useFirebase } from "@/hooks/use-firebase";
 
 export default function DashboardPage() {
-  const { user, db, firebaseUtils } = useFirebase();
+  const { user, db, firebaseUtils, userData } = useFirebase();
   const [balances, setBalances] = useState<Array<{ name: string; value: number; icon: React.ElementType; color: string }>>([]);
   const [chartData, setChartData] = useState<Array<{ month: string; balance: number }>>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +99,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
+        <h2 className="text-2xl font-bold tracking-tight">Bienvenido {userData?.username || '...'} a tu Wallet Digital</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, index) => (
@@ -174,5 +175,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

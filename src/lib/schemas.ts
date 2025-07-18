@@ -1,6 +1,15 @@
 
 import * as z from "zod";
 
+export const userProfileSchema = z.object({
+  username: z.string().min(3, { message: "El nombre de usuario debe tener al menos 3 caracteres." }).max(20, { message: "El nombre de usuario no puede tener más de 20 caracteres." }),
+});
+
+export type UserProfile = {
+  username: string;
+  email: string;
+};
+
 export const loanSchema = z.object({
   loanId: z.string().min(1, "Se requiere un ID para el préstamo."),
   installments: z.coerce.number().int().min(1, "Debe haber al menos una cuota.").max(24, "El máximo es 24 cuotas."),

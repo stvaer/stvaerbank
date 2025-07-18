@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: "STVAERBank",
-  description: "Tu panel de finanzas personales con un toque retro.",
+  description: "Una app de STVAER © 2025 - STVAERBank - Wallet Digital",
 };
 
 export default function RootLayout({
