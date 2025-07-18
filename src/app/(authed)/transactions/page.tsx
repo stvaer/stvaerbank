@@ -44,6 +44,23 @@ type BillWithId = Bill & { id: string };
 
 type FilterType = "recent" | "today" | "month" | "date" | "range";
 
+const incomeCategories = [
+    { value: "Salario", label: "Salario" },
+    { value: "Préstamo", label: "Nuevo Préstamo" },
+    { value: "Servicios Profesionales", label: "Servicios Profesionales" },
+    { value: "Regalos", label: "Regalos" },
+    { value: "Otro Ingreso", label: "Otro Ingreso" },
+];
+
+const expenseCategories = [
+    { value: "Comida", label: "Comida" },
+    { value: "Transporte", label: "Transporte" },
+    { value: "Vivienda", label: "Vivienda" },
+    { value: "Entretenimiento", label: "Entretenimiento" },
+    { value: "Pago de Préstamo", label: "Pago de Préstamo" },
+    { value: "Otro Gasto", label: "Otro Gasto" },
+];
+
 export default function TransactionsPage() {
   const { user, db, firebaseUtils } = useFirebase();
   const [transactions, setTransactions] = useState<TransactionWithId[]>([]);
@@ -65,6 +82,7 @@ export default function TransactionsPage() {
       description: "",
       amount: 0,
       type: "expense",
+      category: "",
       date: new Date(),
       hasAdvance: false,
       advanceAmount: 0,
@@ -87,6 +105,7 @@ export default function TransactionsPage() {
   const watchedHasAdvance = form.watch("hasAdvance");
   const watchedInstallments = form.watch("loanDetails.installments");
   const watchedLoanPaymentId = form.watch("loanPaymentDetails.loanTransactionId");
+  const transactionType = form.watch("type");
 
 
   const fetchActiveLoans = useCallback(async (uid: string) => {
@@ -281,16 +300,12 @@ export default function TransactionsPage() {
       
       if (data.category === 'Préstamo' && data.loanDetails && data.loanDetails.installmentAmounts) {
         const { loanId, installments, frequency, startDate, installmentAmounts } = data.loanDetails;
-        let currentDueDate: Date;
+        let currentDueDate = new Date(startDate);
 
         for (let i = 0; i < installments; i++) {
-          if (i === 0) {
-            currentDueDate = new Date(startDate);
-          } else {
-            const previousDueDate = new Date(currentDueDate!);
-            currentDueDate = addMonths(previousDueDate, 1);
+          if (i > 0) {
+            currentDueDate = addMonths(currentDueDate, 1);
           }
-
           const billData = {
             name: `Cuota ${i + 1}/${installments} - Préstamo ${loanId}`,
             amount: installmentAmounts[i] || 0,
@@ -321,8 +336,8 @@ export default function TransactionsPage() {
         description: "",
         amount: 0,
         type: "expense",
+        category: "",
         date: new Date(),
-        category: undefined,
         hasAdvance: false,
         advanceAmount: 0,
         loanDetails: {
@@ -441,33 +456,52 @@ export default function TransactionsPage() {
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem className="space-y-3">
+                        <FormLabel>Tipo de Transacción</FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={(value) => {
+                                field.onChange(value);
+                                form.setValue("category", ""); 
+                            }}
+                            value={field.value}
+                            className="flex space-x-4"
+                          >
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                              <FormControl><RadioGroupItem value="income" /></FormControl>
+                              <FormLabel className="font-normal">Ingreso</FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                              <FormControl><RadioGroupItem value="expense" /></FormControl>
+                              <FormLabel className="font-normal">Gasto</FormLabel>
+                            </FormItem>
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                    <FormField
                     control={form.control}
                     name="category"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Categoría</FormLabel>
-                        <Select onValueChange={(value) => {
-                            field.onChange(value);
-                            form.setValue('type', value === 'Salario' || value === 'Préstamo' ? 'income' : 'expense');
-                            if (value !== 'Préstamo') form.setValue('loanDetails', undefined, { shouldValidate: true });
-                            if (value !== 'Pago de Préstamo') form.setValue('loanPaymentDetails', undefined, { shouldValidate: true });
-                        }} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Selecciona una categoría" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="Salario">Salario</SelectItem>
-                            <SelectItem value="Side Hustle">Extra</SelectItem>
-                            <SelectItem value="Food">Comida</SelectItem>
-                            <SelectItem value="Transport">Transporte</SelectItem>
-                            <SelectItem value="Housing">Vivienda</SelectItem>
-                            <SelectItem value="Entertainment">Entretenimiento</SelectItem>
-                            <SelectItem value="Préstamo">Nuevo Préstamo</SelectItem>
-                            <SelectItem value="Pago de Préstamo">Pago de Préstamo</SelectItem>
-                            <SelectItem value="Other">Otro</SelectItem>
+                            {(transactionType === 'income' ? incomeCategories : expenseCategories).map(cat => (
+                                <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -964,22 +998,16 @@ export default function TransactionsPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Categoría</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecciona una categoría" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="Food">Comida</SelectItem>
-                              <SelectItem value="Transport">Transporte</SelectItem>
-                              <SelectItem value="Housing">Vivienda</SelectItem>
-                              <SelectItem value="Entertainment">Entretenimiento</SelectItem>
-                              <SelectItem value="Salario">Salario</SelectItem>
-                              <SelectItem value="Préstamo">Nuevo Préstamo</SelectItem>
-                              <SelectItem value="Pago de Préstamo">Pago de Préstamo</SelectItem>
-                              <SelectItem value="Side Hustle">Extra</SelectItem>
-                              <SelectItem value="Other">Otro</SelectItem>
+                                {(transactionType === 'income' ? incomeCategories : expenseCategories).map(cat => (
+                                    <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -1102,5 +1130,3 @@ export default function TransactionsPage() {
     </>
   );
 }
-
-    
