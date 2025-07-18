@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, setDate, lastDayOfMonth } from "date-fns";
 import { Calendar as CalendarIcon, PlusCircle, ArrowDown, ArrowUp, Pencil } from "lucide-react";
-import type { Timestamp } from "firebase/firestore";
+import type { Timestamp, QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { DateRange } from "react-day-picker";
 
 import { transactionSchema, type Transaction, type LoanDetails, type LoanPaymentDetails, type Bill } from "@/lib/schemas";
@@ -99,7 +99,7 @@ export default function TransactionsPage() {
             where("category", "==", "Préstamo")
         );
         const querySnapshot = await getDocs(q);
-        const loans = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as TransactionWithId);
+        const loans = querySnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({ ...doc.data(), id: doc.id }) as TransactionWithId);
         setActiveLoans(loans);
     } catch (error) {
         console.error("Error fetching active loans:", error);
@@ -127,7 +127,7 @@ export default function TransactionsPage() {
             orderBy("dueDate", "asc")
         );
         const querySnapshot = await getDocs(q);
-        const bills = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, dueDate: (doc.data().dueDate as Timestamp).toDate() }) as BillWithId);
+        const bills = querySnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({ ...doc.data(), id: doc.id, dueDate: (doc.data().dueDate as Timestamp).toDate() }) as BillWithId);
         setSelectedLoanBills(bills);
     } catch (error) {
         console.error("Error fetching unpaid bills:", error);
@@ -190,7 +190,7 @@ export default function TransactionsPage() {
         
         q = query(baseQuery, ...constraints);
         const querySnapshot = await getDocs(q);
-        const transactionsData = querySnapshot.docs.map((doc: any) => {
+        const transactionsData = querySnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => {
             const data = doc.data();
             const loanDetails = data.loanDetails && data.loanDetails.startDate ? {
                 ...data.loanDetails,
@@ -281,16 +281,14 @@ export default function TransactionsPage() {
       
       if (data.category === 'Préstamo' && data.loanDetails && data.loanDetails.installmentAmounts) {
         const { loanId, installments, frequency, startDate, installmentAmounts } = data.loanDetails;
-        let currentDueDate = new Date(startDate);
-        
+        let currentDueDate: Date;
+
         for (let i = 0; i < installments; i++) {
-          // Simplified and corrected date logic
-          if (i > 0) {
-            if (frequency === 'monthly') {
-                currentDueDate = addMonths(currentDueDate, 1);
-            } else { // 'bi-weekly' now treated as monthly to avoid complexity/errors
-                currentDueDate = addMonths(currentDueDate, 1);
-            }
+          if (i === 0) {
+            currentDueDate = new Date(startDate);
+          } else {
+            const previousDueDate = new Date(currentDueDate!);
+            currentDueDate = addMonths(previousDueDate, 1);
           }
 
           const billData = {
@@ -633,7 +631,7 @@ export default function TransactionsPage() {
                             <FormItem><FormLabel>Nº de Cuotas</FormLabel><FormControl><Input type="number" min={1} max={24} placeholder="12" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} /></FormControl><FormMessage /></FormItem>
                           )}
                         />
-                        {Array.from({ length: watchedInstallments || 0 }).map((_, index) => (
+                         {Array.from({ length: watchedInstallments > 24 ? 24 : watchedInstallments || 0 }).map((_, index) => (
                            <FormField
                             key={index}
                             control={form.control}
@@ -1104,7 +1102,5 @@ export default function TransactionsPage() {
     </>
   );
 }
-
-
 
     
